@@ -245,6 +245,7 @@ fun Home(modifier: Modifier = Modifier) {
 
 		if (!showDeleteButtons){
 			FabMenu(
+				listOf(
 					FabMenuItem(
 						"Remove Game",
 						Icons.Default.Delete
