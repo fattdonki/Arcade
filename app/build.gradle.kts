@@ -5,16 +5,12 @@ plugins {
 
 android {
 	namespace = "com.arthur.arcade"
-	compileSdk {
-		version = release(37) {
-			minorApiLevel = 0
-		}
-	}
+	compileSdk = 37
 
 	defaultConfig {
 		applicationId = "com.arthur.arcade"
 		minSdk = 33
-		targetSdk = 36
+		targetSdk = 37
 		versionCode = 100
 		versionName = "1.0"
 
