@@ -1,12 +1,11 @@
-# Arcade
-
-Arcade is a minimal, Material You-themed game launcher. It allows you to block offline games from accessing the internet using a VPN. This saves battery, blocks ads, and protects your privacy.
-
-## Features
-* Distraction free launcher letting you focus on your library, with clean Material design
-* Block selected games from accessing the network
-* Rename games
-* Automatically enable or disable Do Not Disturb for selected games
-
-## Permissions
-Arcade requires DND permissions, notification permissions, and VPN permissions.
+<h1>Arcade</h1>
+<p>Arcade is a minimal, Material You-themed game launcher. It allows you to block offline games from accessing the internet using a VPN. This saves battery, blocks ads, and protects your privacy.</p>
+<h2>Features</h2>
+<ul>
+<li>Distraction free launcher letting you focus on your library, with clean Material design</li>
+<li>Block selected games from accessing the network</li>
+<li>Rename games</li>
+<li>Automatically enable or disable Do Not Disturb for selected games</li>
+</ul>
+<h2>Permissions</h2>
+<p>Arcade requires DND permissions, notification permissions, and VPN permissions.</p>
