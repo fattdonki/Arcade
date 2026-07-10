@@ -181,9 +181,9 @@ fun Home(modifier: Modifier = Modifier) {
 	var games by remember { mutableStateOf(getGames(context)) }
 
 	var showAddAppSheet by remember { mutableStateOf(false) }
-	var showDeleteButtons by remember { mutableStateOf(false) }
+	var showDeleteButton by remember { mutableStateOf(false) }
 
-	BackHandler(showDeleteButtons) { showDeleteButtons = false }
+	BackHandler(showDeleteButton) { showDeleteButton = false }
 
 	Box(Modifier.fillMaxSize()){
 		Column(
@@ -205,35 +205,37 @@ fun Home(modifier: Modifier = Modifier) {
 					verticalArrangement = Arrangement.spacedBy(12.dp)
 				){
 					LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-						games.forEach { game ->
-							item {
-								GameRow(
-									game
-										.resolveName(
-											SettingsRepository.loadName(
-												context,
-												game.packageName
-											)
+						items(
+							items = games,
+							key = { it.packageName }
+						) { game ->
+							GameRow(
+								game = game
+									.resolveName(
+										SettingsRepository.loadName(
+											context,
+											game.packageName
 										)
-										.resolveProfile(
-											SettingsRepository.loadProfile(
-												context,
-												game.packageName
-											)
-										),
-									showDeleteButtons,
-								) {
+									)
+									.resolveProfile(
+										SettingsRepository.loadProfile(
+											context,
+											game.packageName
+										)
+									),
+								showDeleteButton,
+								onDelete = {
 									SettingsRepository.removeGame(context, game.packageName)
 									games = getGames(context)
 								}
-							}
+							)
 						}
-						if (showDeleteButtons) {
+						if (showDeleteButton) {
 							item {
 								Button(
 									modifier = Modifier.fillMaxWidth(),
 									content = { Text("Done") },
-									onClick = { showDeleteButtons = false }
+									onClick = { showDeleteButton = false }
 								)
 							}
 						}
@@ -243,13 +245,13 @@ fun Home(modifier: Modifier = Modifier) {
 
 		}
 
-		if (!showDeleteButtons){
+		if (!showDeleteButton){
 			FabMenu(
 				listOf(
 					FabMenuItem(
 						"Remove Game",
 						Icons.Default.Delete
-					) { showDeleteButtons = true },
+					) { showDeleteButton = true },
 					FabMenuItem(
 						"Add Game",
 						Icons.Default.Add
@@ -370,7 +372,7 @@ fun getGames(context: Context): List<GameApp> {
 				profile = GameProfile()
 			)
 		} else null
-	}
+	}.sortedBy { it.name }
 }
 
 fun isAGame(appInfo: ApplicationInfo, context: Context): Boolean {
