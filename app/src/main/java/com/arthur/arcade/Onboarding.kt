@@ -1,10 +1,12 @@
 package com.arthur.arcade
 
+import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -43,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -52,6 +55,8 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun Onboarding(modifier: Modifier = Modifier, onContinue: () -> Unit) {
+	val context = LocalContext.current
+
 	Box(Modifier.fillMaxSize()) {
 		Column(
 			modifier = modifier
@@ -172,7 +177,14 @@ fun Onboarding(modifier: Modifier = Modifier, onContinue: () -> Unit) {
 				Card(
 					modifier = Modifier
 						.fillMaxWidth()
-						.offset { IntOffset(offsetAnim.value.toInt(), 0) },
+						.offset { IntOffset(offsetAnim.value.toInt(), 0) }
+						.clickable {
+							Toast.makeText(
+								context,
+								"Tapping the card opens the game. Slide right to open settings.",
+								Toast.LENGTH_SHORT
+							).show()
+						},
 					shape = RoundedCornerShape(4.dp),
 					colors = CardDefaults.cardColors(
 						containerColor = MaterialTheme.colorScheme.secondaryContainer,
