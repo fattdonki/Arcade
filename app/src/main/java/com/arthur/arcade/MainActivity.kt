@@ -87,11 +87,25 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 		setContent {
 			ArcadeTheme {
 				Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-					CheckPermissions(LocalContext.current)
+					val context = LocalContext.current
 
-					Home(
-						modifier = Modifier.padding(innerPadding)
-					)
+					var showOnboarding by remember {
+						mutableStateOf(!SettingsRepository.hasSeenOnboarding(context))
+					}
+
+					if (showOnboarding) {
+						Onboarding(
+							Modifier.padding(innerPadding),
+							onContinue = {
+								SettingsRepository.setHasSeenOnboarding(context)
+								showOnboarding = false
+							}
+						)
+					} else {
+						CheckPermissions(context)
+
+						Home(Modifier.padding(innerPadding))
+					}
 				}
 			}
 		}
@@ -224,6 +238,7 @@ fun Home(modifier: Modifier = Modifier) {
 										)
 									),
 								showDeleteButton,
+
 								onDelete = {
 									SettingsRepository.removeGame(context, game.packageName)
 									games = getGames(context)
@@ -487,6 +502,16 @@ object SettingsRepository {
 
 		root.put("removedGames", removedGames)
 		root.put("nonGameApps", addedGames)
+		saveFile(context, root)
+	}
+
+	fun hasSeenOnboarding(context: Context): Boolean {
+		return loadFile(context).optBoolean("hasSeenOnboarding", false)
+	}
+
+	fun setHasSeenOnboarding(context: Context) {
+		val root = loadFile(context)
+		root.put("hasSeenOnboarding", true)
 		saveFile(context, root)
 	}
 

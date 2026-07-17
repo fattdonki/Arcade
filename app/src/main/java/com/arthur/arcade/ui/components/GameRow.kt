@@ -84,8 +84,8 @@ fun GameRow(game: GameApp, showDeleteButton: Boolean, onDelete: () -> Unit) {
 	var showSheet by remember { mutableStateOf(false) }
 
 	val fraction = (offsetAnim.value / rowWidthPx).coerceIn(0f, 1f)
-	val cornerDp = (fraction * 150f).coerceAtMost(75f)
 	val density = LocalDensity.current.density
+	val cornerDp = (rowWidthPx / 2f / density).coerceAtMost(75f)
 
 	var renameValue by remember { mutableStateOf(game.name) }
 	var profile by remember { mutableStateOf(game.profile) }

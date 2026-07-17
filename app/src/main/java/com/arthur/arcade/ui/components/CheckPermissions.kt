@@ -123,7 +123,7 @@ fun CheckPermissions(context: Context) {
 			},
 			text = {
 				Text(
-					"Arcade uses notifications to allow you to manually turn of the Arcade VPN.",
+					"Arcade uses notifications to allow you to manually turn off the Arcade VPN.",
 					style = MaterialTheme.typography.bodyMedium
 				)
 			},
