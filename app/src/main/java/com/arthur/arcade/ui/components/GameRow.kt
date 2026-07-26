@@ -37,9 +37,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,7 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -65,6 +67,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.arthur.arcade.GameApp
+import com.arthur.arcade.Position
 import com.arthur.arcade.SettingsRepository
 import com.arthur.arcade.applyProfile
 import kotlinx.coroutines.launch
@@ -72,7 +75,14 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 @Suppress("ASSIGNED_VALUE_IS_NEVER_READ")
-fun GameRow(game: GameApp, showDeleteButton: Boolean, onDelete: () -> Unit) {
+fun GameRow(
+	game: GameApp,
+	showDeleteButton: Boolean,
+	onDelete: () -> Unit,
+	showDraggableButton: Boolean,
+	iconButton: @Composable () -> Unit,
+	position: Position
+) {
 	val context = LocalContext.current
 	val posThreshold = 0.5f
 	val velThreshold = 1500f
@@ -80,8 +90,12 @@ fun GameRow(game: GameApp, showDeleteButton: Boolean, onDelete: () -> Unit) {
 	val rotation = remember { Animatable(0f) }
 	var rowWidthPx by remember { mutableFloatStateOf(1f) }
 	val offsetAnim = remember { Animatable(0f) }
+
 	val scope = rememberCoroutineScope()
 	var showSheet by remember { mutableStateOf(false) }
+	val sheetState = rememberBottomSheetState(
+		initialValue = SheetValue.Hidden,
+	)
 
 	val fraction = (offsetAnim.value / rowWidthPx).coerceIn(0f, 1f)
 	val density = LocalDensity.current.density
@@ -98,7 +112,7 @@ fun GameRow(game: GameApp, showDeleteButton: Boolean, onDelete: () -> Unit) {
 	}
 
 	if (showSheet) {
-		ModalBottomSheet(onDismissRequest = { showSheet = false }) {
+		ModalBottomSheet(onDismissRequest = { showSheet = false }, sheetState = sheetState) {
 			val keyboardController = LocalSoftwareKeyboardController.current
 			val focusManager = LocalFocusManager.current
 
@@ -109,12 +123,15 @@ fun GameRow(game: GameApp, showDeleteButton: Boolean, onDelete: () -> Unit) {
 				verticalArrangement = Arrangement.spacedBy(8.dp)
 			) {
 
+				var textFieldValue by remember { mutableStateOf(renameValue) }
+
 				OutlinedTextField(
-					value = renameValue,
-					onValueChange = { renameValue = it },
+					value = textFieldValue,
+					onValueChange = { textFieldValue = it },
 					keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
 					keyboardActions = KeyboardActions(
 						onDone = {
+							renameValue = textFieldValue
 							SettingsRepository.saveName(context, game.packageName, renameValue)
 							keyboardController?.hide()
 							focusManager.clearFocus()
@@ -127,6 +144,13 @@ fun GameRow(game: GameApp, showDeleteButton: Boolean, onDelete: () -> Unit) {
 						unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant,
 					),
 					shape = RoundedCornerShape(16.dp),
+					modifier = Modifier.onFocusChanged { focusState ->
+						if (focusState.isFocused) {
+							scope.launch {
+								sheetState.expand()
+							}
+						}
+					}
 				)
 				Spacer(modifier = Modifier.height(8.dp))
 				RadioGroup("Do Not Disturb", profile.doNotDisturbOn) {
@@ -225,7 +249,10 @@ fun GameRow(game: GameApp, showDeleteButton: Boolean, onDelete: () -> Unit) {
 						.getLaunchIntentForPackage(game.packageName)
 						?.let { context.startActivity(it) }
 				},
-			shape = RoundedCornerShape(4.dp),
+			shape = RoundedCornerShape(
+				topStart = position.topCr, topEnd = position.topCr,
+				bottomStart = position.bottomCr, bottomEnd = position.bottomCr
+			),
 			colors = CardDefaults.cardColors(
 				containerColor = MaterialTheme.colorScheme.secondaryContainer,
 				contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -256,9 +283,11 @@ fun GameRow(game: GameApp, showDeleteButton: Boolean, onDelete: () -> Unit) {
 						Icon(
 							imageVector = Icons.Default.Delete,
 							contentDescription = "Delete",
-							tint = Color.Red,
+							tint = MaterialTheme.colorScheme.error,
 						)
 					}
+				} else if (showDraggableButton) {
+					iconButton()
 				}
 			}
 		}

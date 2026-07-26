@@ -21,22 +21,32 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,14 +58,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.arthur.arcade.ui.components.CheckPermissions
-import com.arthur.arcade.ui.components.FabMenu
-import com.arthur.arcade.ui.components.FabMenuItem
 import com.arthur.arcade.ui.components.GameRow
 import com.arthur.arcade.ui.theme.ArcadeTheme
 import com.arthur.arcade.vpn.VpnHandler
@@ -65,6 +74,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.io.File
 
 class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
@@ -196,6 +207,16 @@ fun Home(modifier: Modifier = Modifier) {
 
 	var showAddAppSheet by remember { mutableStateOf(false) }
 	var showDeleteButton by remember { mutableStateOf(false) }
+	var showDraggableButton by remember { mutableStateOf(false) }
+
+	val lazyListState = rememberLazyListState()
+	val reorderableLazyListState = rememberReorderableLazyListState(
+		lazyListState
+	) { from, to ->
+		games = games.toMutableList().apply {
+			add(to.index, removeAt(from.index))
+		}
+	}
 
 	BackHandler(showDeleteButton) { showDeleteButton = false }
 
@@ -218,40 +239,68 @@ fun Home(modifier: Modifier = Modifier) {
 				Column(
 					verticalArrangement = Arrangement.spacedBy(12.dp)
 				){
-					LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-						items(
+					LazyColumn(
+						verticalArrangement = Arrangement.spacedBy(4.dp),
+						state = lazyListState
+					) {
+						itemsIndexed(
 							items = games,
-							key = { it.packageName }
-						) { game ->
-							GameRow(
-								game = game
-									.resolveName(
-										SettingsRepository.loadName(
-											context,
-											game.packageName
+							key = { _, game -> game.packageName }
+						) { index, game ->
+							ReorderableItem(reorderableLazyListState, key = game.packageName){ isDragging ->
+								GameRow(
+									game = game
+										.resolveName(
+											SettingsRepository.loadName(
+												context,
+												game.packageName
+											)
 										)
-									)
-									.resolveProfile(
-										SettingsRepository.loadProfile(
-											context,
-											game.packageName
-										)
-									),
-								showDeleteButton,
+										.resolveProfile(
+											SettingsRepository.loadProfile(
+												context,
+												game.packageName
+											)
+										),
 
-								onDelete = {
-									SettingsRepository.removeGame(context, game.packageName)
-									games = getGames(context)
-								}
-							)
-						}
-						if (showDeleteButton) {
-							item {
-								Button(
-									modifier = Modifier.fillMaxWidth(),
-									content = { Text("Done") },
-									onClick = { showDeleteButton = false }
+									showDeleteButton,
+
+									onDelete = {
+										SettingsRepository.removeGame(context, game.packageName)
+										games = getGames(context)
+									},
+
+									showDraggableButton,
+
+									iconButton = @Composable {
+										IconButton(
+											modifier = Modifier.draggableHandle(),
+											onClick = {},
+										) {
+											Icon(Icons.Default.DragIndicator, contentDescription = "Reorder")
+										}
+									},
+
+									position = when (index) {
+										0 -> {
+											Position.Top
+										}
+
+										games.lastIndex -> {
+											Position.Bottom
+										}
+
+										else -> {
+											if (isDragging) Position.Floating
+											else Position.Middle
+										}
+									}
 								)
+							}
+						}
+						if (showDeleteButton or showDraggableButton) {
+							item {
+								Spacer(Modifier.height(88.dp))
 							}
 						}
 					}
@@ -260,19 +309,91 @@ fun Home(modifier: Modifier = Modifier) {
 
 		}
 
-		if (!showDeleteButton){
-			FabMenu(
-				listOf(
-					FabMenuItem(
-						"Remove Game",
-						Icons.Default.Delete
-					) { showDeleteButton = true },
-					FabMenuItem(
-						"Add Game",
-						Icons.Default.Add
-					) { showAddAppSheet = true },
-				)
-			)
+		Box(
+			modifier = Modifier
+				.align(Alignment.BottomEnd)
+				.navigationBarsPadding()
+				.padding(16.dp)
+		) {
+			var expanded by remember { mutableStateOf(false) }
+
+			BackHandler(expanded) { expanded = false }
+
+			FloatingActionButtonMenu(
+				expanded = expanded && !showDeleteButton,
+				button = {
+					ToggleFloatingActionButton(
+						checked = if (showDeleteButton) false else expanded,
+						onCheckedChange = { checked ->
+							if (showDeleteButton) {
+								showDeleteButton = false
+							} else if (showDraggableButton) {
+								showDraggableButton = false
+								SettingsRepository.setCustomOrder(context, games.map { it.packageName} )
+							} else {
+								expanded = checked
+							}
+						}
+					) {
+						Icon(
+							imageVector = when {
+								showDeleteButton -> Icons.Default.Done
+								showDraggableButton -> Icons.Default.Done
+								expanded -> Icons.Default.Close
+								else -> Icons.Default.Add
+							},
+							contentDescription = if (showDeleteButton) "Done" else "Menu Toggle",
+							tint = if (expanded && !showDeleteButton) {
+								MaterialTheme.colorScheme.onPrimary
+							} else {
+								MaterialTheme.colorScheme.onPrimaryContainer
+							}
+						)
+					}
+				}
+			) {
+				if (!showDeleteButton) {
+					FloatingActionButtonMenuItem(
+						onClick = {
+							showDraggableButton = true
+							expanded = false
+						},
+						text = { Text("Reorder Games") },
+						icon = {
+							Icon(
+								Icons.Default.DragIndicator,
+								contentDescription = "Drag Indicator"
+							)
+						}
+					)
+					FloatingActionButtonMenuItem(
+						onClick = {
+							showDeleteButton = true
+							expanded = false
+						},
+						text = { Text("Remove Game") },
+						icon = {
+							Icon(
+								Icons.Default.Delete,
+								contentDescription = "Delete"
+							)
+						}
+					)
+					FloatingActionButtonMenuItem(
+						onClick = {
+							showAddAppSheet = true
+							expanded = false
+						},
+						text = { Text("Add Game") },
+						icon = {
+							Icon(
+								Icons.Default.Add,
+								contentDescription = "Add"
+							)
+						}
+					)
+				}
+			}
 		}
 	}
 
@@ -295,68 +416,90 @@ fun Home(modifier: Modifier = Modifier) {
 					CircularProgressIndicator()
 				}
 			} else {
-				LazyColumn(
+				Box(
 					Modifier
-						.fillMaxWidth()
-						.padding(24.dp),
-					verticalArrangement = Arrangement.spacedBy(8.dp)
-				) {
-					item {
-						Text(
-							"Add app",
-							style = MaterialTheme.typography.headlineMedium
-						)
-					}
-					items(apps, key = { it.info.packageName }) { app ->
-						Row(
-							modifier = Modifier.fillMaxWidth(),
-							verticalAlignment = Alignment.CenterVertically,
-							horizontalArrangement = Arrangement.spacedBy(4.dp)
-						) {
-							var appIcon by remember(app.info.packageName) {
-								mutableStateOf<Drawable?>(null)
-							}
-
-							LaunchedEffect(app.info.packageName) {
-								withContext(Dispatchers.IO) {
-									try {
-										appIcon = context.packageManager
-											.getApplicationIcon(app.info.packageName)
-									} catch (_: Exception) {}
-								}
-							}
-
-							AsyncImage(
-								model = appIcon,
-								contentDescription = "App Icon",
-								modifier = Modifier
-									.size(40.dp)
-									.clip(RoundedCornerShape(16.dp))
-							)
-
-							Text(app.name)
-
-							Spacer(Modifier.weight(1f))
-
-							Checkbox(
-								checked = app.isChecked,
-								onCheckedChange = { viewModel.toggleAppChecked(app.info.packageName) }
+						.fillMaxSize()
+				){
+					LazyColumn(
+						Modifier
+							.fillMaxWidth()
+							.padding(24.dp),
+						verticalArrangement = Arrangement.spacedBy(8.dp)
+					) {
+						item {
+							Text(
+								"Add app",
+								style = MaterialTheme.typography.headlineMedium
 							)
 						}
-					}
-					item {
-						Button(
-							modifier = Modifier.fillMaxWidth(),
-							content = { Text("Save") },
-							onClick = {
-								viewModel.appsState.value
-									.filter { it.isChecked }
-									.map { it.info.packageName }
-									.forEach { SettingsRepository.addNonGameApps(context, it) }
-								games = getGames(context)
-								showAddAppSheet = false
+						items(apps, key = { it.info.packageName }) { app ->
+							Row(
+								modifier = Modifier.fillMaxWidth(),
+								verticalAlignment = Alignment.CenterVertically,
+								horizontalArrangement = Arrangement.spacedBy(4.dp)
+							) {
+								var appIcon by remember(app.info.packageName) {
+									mutableStateOf<Drawable?>(null)
+								}
+
+								LaunchedEffect(app.info.packageName) {
+									withContext(Dispatchers.IO) {
+										try {
+											appIcon = context.packageManager
+												.getApplicationIcon(app.info.packageName)
+										} catch (_: Exception) {
+										}
+									}
+								}
+
+								AsyncImage(
+									model = appIcon,
+									contentDescription = "App Icon",
+									modifier = Modifier
+										.size(40.dp)
+										.clip(RoundedCornerShape(16.dp))
+								)
+
+								Text(app.name)
+
+								Spacer(Modifier.weight(1f))
+
+								Checkbox(
+									checked = app.isChecked,
+									onCheckedChange = { viewModel.toggleAppChecked(app.info.packageName) }
+								)
 							}
-						)
+						}
+						item {
+							Spacer(Modifier.height(88.dp))
+						}
+					}
+					Box(
+						modifier = Modifier
+							.align(Alignment.BottomEnd)
+							.padding(16.dp)
+					) {
+						FloatingActionButtonMenu(
+							expanded = false,
+							button = {
+								ToggleFloatingActionButton(
+									checked = false,
+									onCheckedChange = {
+										viewModel.appsState.value
+											.filter { it.isChecked }
+											.map { it.info.packageName }
+											.forEach { SettingsRepository.addNonGameApps(context, it) }
+										games = getGames(context)
+										showAddAppSheet = false									}
+								) {
+									Icon(
+										imageVector = Icons.Default.Done,
+										contentDescription = if (showDeleteButton) "Done" else "Menu Toggle",
+										tint = MaterialTheme.colorScheme.onPrimaryContainer
+									)
+								}
+							}
+						) {}
 					}
 				}
 			}
@@ -364,8 +507,16 @@ fun Home(modifier: Modifier = Modifier) {
 	}
 }
 
+enum class Position(val topCr: Dp, val bottomCr: Dp) {
+	Top(24.dp, 4.dp),
+	Middle(4.dp, 4.dp),
+	Bottom(4.dp, 24.dp),
+	Floating(24.dp, 24.dp)
+}
+
 fun getGames(context: Context): List<GameApp> {
 	val packageManager = context.packageManager
+	val order = SettingsRepository.loadCustomOrder(context)
 
 	val intent = Intent(Intent.ACTION_MAIN).apply {
 		addCategory(Intent.CATEGORY_LAUNCHER)
@@ -387,7 +538,21 @@ fun getGames(context: Context): List<GameApp> {
 				profile = GameProfile()
 			)
 		} else null
-	}.sortedBy { it.name }
+	}.sortedWith { a, b ->
+		if (order.isNullOrEmpty()) {
+			a.name.compareTo(b.name)
+		} else {
+			val indexA = order.indexOf(a.packageName).let {
+				if (it != -1) it else Int.MAX_VALUE
+			}
+
+			val indexB = order.indexOf(b.packageName).let {
+				if (it != -1) it else Int.MAX_VALUE
+			}
+
+			indexA.compareTo(indexB)
+		}
+	}
 }
 
 fun isAGame(appInfo: ApplicationInfo, context: Context): Boolean {
@@ -512,6 +677,21 @@ object SettingsRepository {
 	fun setHasSeenOnboarding(context: Context) {
 		val root = loadFile(context)
 		root.put("hasSeenOnboarding", true)
+		saveFile(context, root)
+	}
+
+	fun loadCustomOrder(context: Context): List<String>? {
+		val jsonArray = loadFile(context).optJSONArray("customOrder") ?: return null
+
+		return (0 until jsonArray.length()).map { index ->
+			jsonArray.getString(index)
+		}
+	}
+
+	fun setCustomOrder(context: Context, order: List<String>) {
+		val root: JSONObject = loadFile(context)
+
+		root.put("customOrder", JSONArray(order))
 		saveFile(context, root)
 	}
 
