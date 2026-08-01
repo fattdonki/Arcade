@@ -74,7 +74,6 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@Suppress("ASSIGNED_VALUE_IS_NEVER_READ")
 fun GameRow(
 	game: GameApp,
 	showDeleteButton: Boolean,

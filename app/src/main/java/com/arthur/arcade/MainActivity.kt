@@ -13,6 +13,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +36,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
@@ -50,6 +56,7 @@ import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -58,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
@@ -70,6 +78,7 @@ import com.arthur.arcade.ui.theme.ArcadeTheme
 import com.arthur.arcade.vpn.VpnHandler
 import com.arthur.arcade.vpn.VpnHandlerImpl
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -77,6 +86,7 @@ import org.json.JSONObject
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.io.File
+import kotlin.time.Duration.Companion.milliseconds
 
 class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 	val vpnPermissionLauncher = registerForActivityResult(
@@ -200,25 +210,70 @@ class AppListViewModel(application: Application) : AndroidViewModel(application)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@Suppress("ASSIGNED_VALUE_IS_NEVER_READ")
 fun Home(modifier: Modifier = Modifier) {
 	val context = LocalContext.current
+
 	var games by remember { mutableStateOf(getGames(context)) }
+	var spacerIndices by remember { mutableStateOf(SettingsRepository.loadIndices(context)) }
 
 	var showAddAppSheet by remember { mutableStateOf(false) }
 	var showDeleteButton by remember { mutableStateOf(false) }
 	var showDraggableButton by remember { mutableStateOf(false) }
 
+	var isAnyItemDragging by remember { mutableStateOf(false) }
+	var wasDragging by remember { mutableStateOf(false) }
+	var showDropZoneContent by remember { mutableStateOf(true) }
+	var dropZoneIndex by remember { mutableIntStateOf(games.size) }
+
+	val renderList: List<GameApp?> = remember(games, dropZoneIndex, showDraggableButton) {
+		if (!showDraggableButton) games
+		else games.toMutableList<GameApp?>().apply { add(dropZoneIndex.coerceIn(0, size), null) }
+	}
+
+	LaunchedEffect(isAnyItemDragging) {
+		if (wasDragging && !isAnyItemDragging) {
+
+			if (dropZoneIndex != games.size) {
+
+				val boundary = (dropZoneIndex - 1).coerceAtLeast(0)
+				spacerIndices = ((spacerIndices ?: emptyList()) + boundary).distinct().sorted()
+
+				showDropZoneContent = false
+				delay(300.milliseconds)
+				dropZoneIndex = games.size
+				showDropZoneContent = true
+			}
+		}
+		wasDragging = isAnyItemDragging
+	}
+
 	val lazyListState = rememberLazyListState()
 	val reorderableLazyListState = rememberReorderableLazyListState(
 		lazyListState
 	) { from, to ->
-		games = games.toMutableList().apply {
-			add(to.index, removeAt(from.index))
+
+		if (from.index == to.index) return@rememberReorderableLazyListState
+
+		val working = games.toMutableList<GameApp?>().apply {
+			add(dropZoneIndex.coerceIn(0, size), null)
 		}
+
+		working.add(to.index, working.removeAt(from.index))
+
+		games = working.filterNotNull()
+		dropZoneIndex = working.indexOf(null)
+
+		spacerIndices = (spacerIndices ?: emptyList()).map { spacerIdx ->
+			when {
+				from.index <= spacerIdx && to.index > spacerIdx -> spacerIdx - 1
+				from.index > spacerIdx && to.index <= spacerIdx -> spacerIdx + 1
+				else -> spacerIdx
+			}
+		}.distinct().filter { it in 0 until games.lastIndex }.sorted()
 	}
 
 	BackHandler(showDeleteButton) { showDeleteButton = false }
+	BackHandler(showDraggableButton) { showDraggableButton = false }
 
 	Box(Modifier.fillMaxSize()){
 		Column(
@@ -236,77 +291,119 @@ fun Home(modifier: Modifier = Modifier) {
 			Spacer(modifier = Modifier.height(24.dp))
 
 			Box(modifier = Modifier.clip(RoundedCornerShape(24.dp))) {
-				Column(
-					verticalArrangement = Arrangement.spacedBy(12.dp)
-				){
-					LazyColumn(
-						verticalArrangement = Arrangement.spacedBy(4.dp),
-						state = lazyListState
-					) {
-						itemsIndexed(
-							items = games,
-							key = { _, game -> game.packageName }
-						) { index, game ->
-							ReorderableItem(reorderableLazyListState, key = game.packageName){ isDragging ->
-								GameRow(
-									game = game
-										.resolveName(
-											SettingsRepository.loadName(
-												context,
-												game.packageName
-											)
-										)
-										.resolveProfile(
-											SettingsRepository.loadProfile(
-												context,
-												game.packageName
-											)
-										),
-
-									showDeleteButton,
-
-									onDelete = {
-										SettingsRepository.removeGame(context, game.packageName)
-										games = getGames(context)
-									},
-
-									showDraggableButton,
-
-									iconButton = @Composable {
-										IconButton(
-											modifier = Modifier.draggableHandle(),
-											onClick = {},
-										) {
-											Icon(Icons.Default.DragIndicator, contentDescription = "Reorder")
-										}
-									},
-
-									position = when (index) {
-										0 -> {
-											Position.Top
-										}
-
-										games.lastIndex -> {
-											Position.Bottom
-										}
-
-										else -> {
-											if (isDragging) Position.Floating
-											else Position.Middle
+				LazyColumn(
+					verticalArrangement = Arrangement.spacedBy(4.dp),
+					state = lazyListState
+				) {
+					itemsIndexed(
+						items = renderList,
+						key = { _, g -> g?.packageName ?: "BOTTOM_BOX" }
+					) { index, gameOrNull ->
+						ReorderableItem(
+							reorderableLazyListState,
+							key = gameOrNull?.packageName ?: "BOTTOM_BOX"
+						) { isDragging ->
+							Column {
+								if (gameOrNull == null) {
+									Column(modifier = Modifier.animateItem()) {
+										Spacer(Modifier.height(4.dp))
+										AnimatedVisibility(
+											visible = showDropZoneContent,
+											enter = fadeIn(tween(200)),
+											exit = fadeOut(tween(150))
+										){
+											Box(
+												modifier = Modifier
+													.fillMaxWidth()
+													.height(80.dp)
+													.clip(RoundedCornerShape(24.dp))
+													.background(MaterialTheme.colorScheme.tertiaryContainer)
+													.padding(horizontal = 24.dp, vertical = 12.dp),											) {
+												Row(
+													Modifier.fillMaxSize(),
+													Arrangement.SpaceBetween,
+													Alignment.CenterVertically
+												) {
+													Text(
+														"Drop game below to create a new category",
+														color = MaterialTheme.colorScheme.onTertiaryContainer,
+														maxLines = 2,
+														overflow = TextOverflow.Ellipsis,
+														modifier = Modifier
+															.weight(1f, fill = true)
+													)
+													Icon(
+														imageVector = Icons.Default.ArrowDownward,
+														contentDescription = "Downward Arrow",
+														tint = MaterialTheme.colorScheme.onTertiaryContainer,
+													)
+												}
+											}
 										}
 									}
-								)
+								} else {
+									GameRow(
+										game = gameOrNull
+											.resolveName(
+												SettingsRepository.loadName(
+													context,
+													gameOrNull.packageName
+												)
+											)
+											.resolveProfile(
+												SettingsRepository.loadProfile(
+													context,
+													gameOrNull.packageName
+												)
+											),
+
+										showDeleteButton,
+
+										onDelete = {
+											SettingsRepository.removeGame(context, gameOrNull.packageName)
+											games = getGames(context)
+										},
+
+										showDraggableButton,
+
+										iconButton = @Composable {
+											IconButton(
+												modifier = Modifier.draggableHandle(
+													onDragStarted = { isAnyItemDragging = true },
+													onDragStopped = { isAnyItemDragging = false }
+												),
+												onClick = {},
+											) {
+												Icon(
+													Icons.Default.DragIndicator,
+													contentDescription = "Reorder"
+												)
+											}
+										},
+
+										position = resolveCardPosition(
+											index,
+											games.size,
+											spacerIndices ?: listOf(),
+											isDragging,
+										)
+									)
+
+									if (spacerIndices?.contains(index) == true) {
+										Spacer(modifier = Modifier.height(16.dp))
+									}
+								}
 							}
 						}
-						if (showDeleteButton or showDraggableButton) {
-							item {
-								Spacer(Modifier.height(88.dp))
-							}
+					}
+
+					if (showDeleteButton or showDraggableButton) {
+						item {
+							Spacer(Modifier.height(88.dp))
 						}
 					}
 				}
 			}
-
 		}
 
 		Box(
@@ -330,6 +427,7 @@ fun Home(modifier: Modifier = Modifier) {
 							} else if (showDraggableButton) {
 								showDraggableButton = false
 								SettingsRepository.setCustomOrder(context, games.map { it.packageName} )
+								SettingsRepository.setIndices(context, spacerIndices ?: listOf())
 							} else {
 								expanded = checked
 							}
@@ -358,7 +456,7 @@ fun Home(modifier: Modifier = Modifier) {
 							showDraggableButton = true
 							expanded = false
 						},
-						text = { Text("Reorder Games") },
+						text = { Text("Organise Games") },
 						icon = {
 							Icon(
 								Icons.Default.DragIndicator,
@@ -512,6 +610,30 @@ enum class Position(val topCr: Dp, val bottomCr: Dp) {
 	Middle(4.dp, 4.dp),
 	Bottom(4.dp, 24.dp),
 	Floating(24.dp, 24.dp)
+}
+
+
+fun resolveCardPosition(
+	gameIndex: Int,
+	totalGames: Int,
+	spacerIndices: List<Int>,
+	isDragging: Boolean
+): Position {
+	if (isDragging) return Position.Floating
+
+	val isFirstInList = gameIndex == 0
+	val isLastInList = gameIndex == totalGames - 1
+
+	val isBucketTop = isFirstInList || spacerIndices.contains(gameIndex - 1)
+
+	val isBucketBottom = isLastInList || spacerIndices.contains(gameIndex)
+
+	return when {
+		isBucketTop && isBucketBottom -> Position.Floating
+		isBucketTop -> Position.Top
+		isBucketBottom -> Position.Bottom
+		else -> Position.Middle
+	}
 }
 
 fun getGames(context: Context): List<GameApp> {
@@ -692,6 +814,21 @@ object SettingsRepository {
 		val root: JSONObject = loadFile(context)
 
 		root.put("customOrder", JSONArray(order))
+		saveFile(context, root)
+	}
+
+	fun loadIndices(context: Context): List<Int>? {
+		val jsonArray = loadFile(context).optJSONArray("spacerIndices") ?: return null
+
+		return (0 until jsonArray.length()).map { index ->
+			jsonArray.getInt(index)
+		}
+	}
+
+	fun setIndices(context: Context, indices: List<Int>) {
+		val root: JSONObject = loadFile(context)
+
+		root.put("spacerIndices", JSONArray(indices))
 		saveFile(context, root)
 	}
 
