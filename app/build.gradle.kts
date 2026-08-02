@@ -26,6 +26,11 @@ android {
 				"proguard-rules.pro"
 			)
 		}
+
+		debug {
+			applicationIdSuffix = ".nightly"
+			resValue("string", "app_name", "Arcade Nightly")
+		}
 	}
 	compileOptions {
 		sourceCompatibility = JavaVersion.VERSION_11
@@ -33,6 +38,7 @@ android {
 	}
 	buildFeatures {
 		compose = true
+		resValues = true
 	}
 	dependenciesInfo {
 		includeInApk = false

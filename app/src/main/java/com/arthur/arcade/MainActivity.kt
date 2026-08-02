@@ -37,6 +37,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
@@ -182,7 +184,7 @@ class AppListViewModel(application: Application) : AndroidViewModel(application)
 			val resolveInfos = context.packageManager
 				.queryIntentActivities(intent, flags)
 
-			val appList = resolveInfos.map{ info ->
+			val appList = resolveInfos.map { info ->
 				App(
 					name = info.loadLabel(context.packageManager).toString(),
 					info = info.activityInfo.applicationInfo,
@@ -213,8 +215,14 @@ class AppListViewModel(application: Application) : AndroidViewModel(application)
 fun Home(modifier: Modifier = Modifier) {
 	val context = LocalContext.current
 
+	var slidePermission: String? by remember { mutableStateOf(null) }
+
 	var games by remember { mutableStateOf(getGames(context)) }
 	var spacerIndices by remember { mutableStateOf(SettingsRepository.loadIndices(context)) }
+	var collapsedGroupHeaders by remember(spacerIndices) {
+		mutableStateOf(getInitialCollapsedHeaders(games, spacerIndices ?: emptyList()))
+	}
+	val isCategorised = remember(spacerIndices) { spacerIndices?.isNotEmpty() ?: false }
 
 	var showAddAppSheet by remember { mutableStateOf(false) }
 	var showDeleteButton by remember { mutableStateOf(false) }
@@ -225,9 +233,17 @@ fun Home(modifier: Modifier = Modifier) {
 	var showDropZoneContent by remember { mutableStateOf(true) }
 	var dropZoneIndex by remember { mutableIntStateOf(games.size) }
 
-	val renderList: List<GameApp?> = remember(games, dropZoneIndex, showDraggableButton) {
-		if (!showDraggableButton) games
-		else games.toMutableList<GameApp?>().apply { add(dropZoneIndex.coerceIn(0, size), null) }
+	val visibleGames = remember(games, spacerIndices, collapsedGroupHeaders, showDraggableButton, showDeleteButton) {
+		if (showDraggableButton || showDeleteButton) games
+		else games.filterIndexed { index, _ ->
+			isGameVisible(index, games, spacerIndices ?: emptyList(), collapsedGroupHeaders)
+		}
+	}
+
+	val renderList: List<GameApp?> = remember(games, dropZoneIndex, showDraggableButton, collapsedGroupHeaders, showDeleteButton) {
+		if (!showDraggableButton) visibleGames
+		else visibleGames.toMutableList<GameApp?>()
+			.apply { add(dropZoneIndex.coerceIn(0, size), null) }
 	}
 
 	LaunchedEffect(isAnyItemDragging) {
@@ -275,7 +291,7 @@ fun Home(modifier: Modifier = Modifier) {
 	BackHandler(showDeleteButton) { showDeleteButton = false }
 	BackHandler(showDraggableButton) { showDraggableButton = false }
 
-	Box(Modifier.fillMaxSize()){
+	Box(Modifier.fillMaxSize()) {
 		Column(
 			modifier = modifier
 				.fillMaxSize()
@@ -298,50 +314,57 @@ fun Home(modifier: Modifier = Modifier) {
 					itemsIndexed(
 						items = renderList,
 						key = { _, g -> g?.packageName ?: "BOTTOM_BOX" }
-					) { index, gameOrNull ->
+					) { _, gameOrNull ->
 						ReorderableItem(
 							reorderableLazyListState,
 							key = gameOrNull?.packageName ?: "BOTTOM_BOX"
 						) { isDragging ->
-							Column {
+							Column(modifier = Modifier.animateItem()) {
 								if (gameOrNull == null) {
-									Column(modifier = Modifier.animateItem()) {
-										Spacer(Modifier.height(4.dp))
-										AnimatedVisibility(
-											visible = showDropZoneContent,
-											enter = fadeIn(tween(200)),
-											exit = fadeOut(tween(150))
-										){
-											Box(
-												modifier = Modifier
-													.fillMaxWidth()
-													.height(80.dp)
-													.clip(RoundedCornerShape(24.dp))
-													.background(MaterialTheme.colorScheme.tertiaryContainer)
-													.padding(horizontal = 24.dp, vertical = 12.dp),											) {
-												Row(
-													Modifier.fillMaxSize(),
-													Arrangement.SpaceBetween,
-													Alignment.CenterVertically
-												) {
-													Text(
-														"Drop game below to create a new category",
-														color = MaterialTheme.colorScheme.onTertiaryContainer,
-														maxLines = 2,
-														overflow = TextOverflow.Ellipsis,
-														modifier = Modifier
-															.weight(1f, fill = true)
-													)
-													Icon(
-														imageVector = Icons.Default.ArrowDownward,
-														contentDescription = "Downward Arrow",
-														tint = MaterialTheme.colorScheme.onTertiaryContainer,
-													)
-												}
+									Spacer(Modifier.height(4.dp))
+									AnimatedVisibility(
+										visible = showDropZoneContent,
+										enter = fadeIn(tween(200)),
+										exit = fadeOut(tween(150))
+									) {
+										Box(
+											modifier = Modifier
+												.fillMaxWidth()
+												.height(80.dp)
+												.clip(RoundedCornerShape(24.dp))
+												.background(MaterialTheme.colorScheme.tertiaryContainer)
+												.padding(horizontal = 24.dp, vertical = 12.dp),
+										) {
+											Row(
+												Modifier.fillMaxSize(),
+												Arrangement.SpaceBetween,
+												Alignment.CenterVertically
+											) {
+												Text(
+													"Drop game below to create a new category",
+													color = MaterialTheme.colorScheme.onTertiaryContainer,
+													maxLines = 2,
+													overflow = TextOverflow.Ellipsis,
+													modifier = Modifier
+														.weight(1f, fill = true)
+												)
+												Icon(
+													imageVector = Icons.Default.ArrowDownward,
+													contentDescription = "Downward Arrow",
+													tint = MaterialTheme.colorScheme.onTertiaryContainer,
+												)
 											}
 										}
+
 									}
 								} else {
+									val rawGameIndex = games.indexOf(gameOrNull)
+									val isGroupHeader = rawGameIndex == 0 || (spacerIndices?.contains(rawGameIndex - 1) == true)
+									val isGroupExpanded = !collapsedGroupHeaders.contains(gameOrNull.packageName)
+									val groupEndIndex = getGroupEndIndex(rawGameIndex, games.size, spacerIndices ?: emptyList())
+
+									val isCollapsibleGroup = isGroupHeader && (groupEndIndex > rawGameIndex)
+
 									GameRow(
 										game = gameOrNull
 											.resolveName(
@@ -357,39 +380,88 @@ fun Home(modifier: Modifier = Modifier) {
 												)
 											),
 
-										showDeleteButton,
-
-										onDelete = {
-											SettingsRepository.removeGame(context, gameOrNull.packageName)
-											games = getGames(context)
-										},
-
-										showDraggableButton,
-
 										iconButton = @Composable {
-											IconButton(
-												modifier = Modifier.draggableHandle(
-													onDragStarted = { isAnyItemDragging = true },
-													onDragStopped = { isAnyItemDragging = false }
-												),
-												onClick = {},
-											) {
-												Icon(
-													Icons.Default.DragIndicator,
-													contentDescription = "Reorder"
-												)
+											when {
+												showDraggableButton -> {
+													IconButton(
+														modifier = Modifier.draggableHandle(
+															onDragStarted = {
+																isAnyItemDragging = true
+															},
+															onDragStopped = {
+																isAnyItemDragging = false
+															}
+														),
+														onClick = {},
+													) {
+														Icon(
+															Icons.Default.DragIndicator,
+															contentDescription = "Reorder"
+														)
+													}
+												}
+												showDeleteButton -> {
+													IconButton(
+														onClick = {
+															SettingsRepository.removeGame(
+																context,
+																gameOrNull.packageName
+															)
+															games = getGames(context)
+														},
+													) {
+														Icon(
+															imageVector = Icons.Default.Delete,
+															contentDescription = "Delete",
+															tint = MaterialTheme.colorScheme.error,
+														)
+													}
+												}
+												isGroupHeader && isCollapsibleGroup && isCategorised -> {
+													IconButton(
+														onClick = {
+															collapsedGroupHeaders = if (isGroupExpanded) {
+																collapsedGroupHeaders + gameOrNull.packageName
+															} else {
+																collapsedGroupHeaders - gameOrNull.packageName
+															}
+														}
+													) {
+														Icon(
+															imageVector = if (isGroupExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+															contentDescription = if (isGroupExpanded) "Collapse Group" else "Expand Group"
+														)
+													}
+												}
 											}
 										},
 
 										position = resolveCardPosition(
-											index,
+											rawGameIndex,
 											games.size,
 											spacerIndices ?: listOf(),
 											isDragging,
-										)
+											isGroupHeader,
+											!isGroupExpanded && !showDeleteButton && !showDraggableButton
+										),
+
+										slideEnabled = !showDeleteButton && !showDraggableButton &&
+												(slidePermission == null || slidePermission == gameOrNull.packageName),
+
+
+										onSlideStarted = {
+											slidePermission = gameOrNull.packageName
+										},
+
+										onSlideStopped = {
+											slidePermission = null
+										}
 									)
 
-									if (spacerIndices?.contains(index) == true) {
+									if (
+										spacerIndices?.contains(rawGameIndex) == true
+										|| (isGroupHeader && !isGroupExpanded && !showDeleteButton && !showDraggableButton)
+									) {
 										Spacer(modifier = Modifier.height(16.dp))
 									}
 								}
@@ -426,7 +498,9 @@ fun Home(modifier: Modifier = Modifier) {
 								showDeleteButton = false
 							} else if (showDraggableButton) {
 								showDraggableButton = false
-								SettingsRepository.setCustomOrder(context, games.map { it.packageName} )
+								SettingsRepository.setCustomOrder(
+									context,
+									games.map { it.packageName })
 								SettingsRepository.setIndices(context, spacerIndices ?: listOf())
 							} else {
 								expanded = checked
@@ -506,18 +580,20 @@ fun Home(modifier: Modifier = Modifier) {
 			}
 		}
 
-		ModalBottomSheet(onDismissRequest = { showAddAppSheet = false} ) {
+		ModalBottomSheet(onDismissRequest = { showAddAppSheet = false }) {
 			if (isLoading) {
-				Box(Modifier
-					.fillMaxWidth()
-					.height(200.dp), contentAlignment = Alignment.Center) {
+				Box(
+					Modifier
+						.fillMaxWidth()
+						.height(200.dp), contentAlignment = Alignment.Center
+				) {
 					CircularProgressIndicator()
 				}
 			} else {
 				Box(
 					Modifier
 						.fillMaxSize()
-				){
+				) {
 					LazyColumn(
 						Modifier
 							.fillMaxWidth()
@@ -586,9 +662,15 @@ fun Home(modifier: Modifier = Modifier) {
 										viewModel.appsState.value
 											.filter { it.isChecked }
 											.map { it.info.packageName }
-											.forEach { SettingsRepository.addNonGameApps(context, it) }
+											.forEach {
+												SettingsRepository.addNonGameApps(
+													context,
+													it
+												)
+											}
 										games = getGames(context)
-										showAddAppSheet = false									}
+										showAddAppSheet = false
+									}
 								) {
 									Icon(
 										imageVector = Icons.Default.Done,
@@ -617,9 +699,12 @@ fun resolveCardPosition(
 	gameIndex: Int,
 	totalGames: Int,
 	spacerIndices: List<Int>,
-	isDragging: Boolean
+	isDragging: Boolean,
+	isGroupHeader: Boolean,
+	isGroupCollapsed: Boolean,
 ): Position {
 	if (isDragging) return Position.Floating
+	if (isGroupHeader && isGroupCollapsed) return Position.Floating
 
 	val isFirstInList = gameIndex == 0
 	val isLastInList = gameIndex == totalGames - 1
@@ -634,6 +719,46 @@ fun resolveCardPosition(
 		isBucketBottom -> Position.Bottom
 		else -> Position.Middle
 	}
+}
+
+fun isGameVisible(
+	gameIndex: Int,
+	games: List<GameApp>,
+	spacerIndices: List<Int>,
+	collapsedHeaders: Set<String>
+): Boolean {
+	val lastSpacerBefore = spacerIndices.filter { it < gameIndex }.maxOrNull()
+	val groupHeaderIndex = if (lastSpacerBefore != null) lastSpacerBefore + 1 else 0
+
+	if (gameIndex == groupHeaderIndex) return true
+
+	val headerGame = games.getOrNull(groupHeaderIndex) ?: return true
+	return !collapsedHeaders.contains(headerGame.packageName)
+}
+
+fun getGroupEndIndex(headerIndex: Int, totalGames: Int, spacerIndices: List<Int>): Int {
+	val nextSpacer = spacerIndices.filter { it >= headerIndex }.minOrNull()
+	return nextSpacer ?: (totalGames - 1)
+}
+
+fun getInitialCollapsedHeaders(
+	games: List<GameApp>,
+	spacerIndices: List<Int>
+): Set<String> {
+	if (spacerIndices.isEmpty() || games.isEmpty()) return emptySet()
+
+	val headers = mutableSetOf<String>()
+
+	games.firstOrNull()?.let { headers.add(it.packageName) }
+
+	spacerIndices.forEach { spacerIndex ->
+		val headerIndex = spacerIndex + 1
+		games.getOrNull(headerIndex)?.let { game ->
+			headers.add(game.packageName)
+		}
+	}
+
+	return headers
 }
 
 fun getGames(context: Context): List<GameApp> {
@@ -653,7 +778,7 @@ fun getGames(context: Context): List<GameApp> {
 		val appInfo = info.activityInfo.applicationInfo
 
 		if (isAGame(appInfo, context)) {
-			GameApp (
+			GameApp(
 				name = info.loadLabel(packageManager).toString(),
 				packageName = appInfo.packageName,
 				icon = info.loadIcon(packageManager),
@@ -698,7 +823,11 @@ object SettingsRepository {
 	private fun loadFile(context: Context): JSONObject {
 		val file = File(context.filesDir, FILE_NAME)
 		if (!file.exists()) return JSONObject()
-		return try { JSONObject(file.readText()) } catch (_: Exception) { JSONObject() }
+		return try {
+			JSONObject(file.readText())
+		} catch (_: Exception) {
+			JSONObject()
+		}
 	}
 
 	private fun saveFile(context: Context, json: JSONObject) {
@@ -843,7 +972,8 @@ object SettingsRepository {
 }
 
 fun applyProfile(context: Context, game: GameApp) {
-	val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+	val notificationManager =
+		context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
 	game.profile.doNotDisturbOn?.let { turnOn ->
 		if (notificationManager.isNotificationPolicyAccessGranted) {

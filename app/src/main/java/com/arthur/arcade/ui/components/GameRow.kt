@@ -27,13 +27,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -76,11 +74,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun GameRow(
 	game: GameApp,
-	showDeleteButton: Boolean,
-	onDelete: () -> Unit,
-	showDraggableButton: Boolean,
 	iconButton: @Composable () -> Unit,
-	position: Position
+	position: Position,
+	slideEnabled: Boolean,
+	onSlideStarted: () -> Unit,
+	onSlideStopped: () -> Unit,
 ) {
 	val context = LocalContext.current
 	val posThreshold = 0.5f
@@ -182,6 +180,7 @@ fun GameRow(
 			.fillMaxWidth()
 			.onSizeChanged { rowWidthPx = it.width.toFloat() }
 			.draggable(
+				enabled = slideEnabled,
 				orientation = Orientation.Horizontal,
 				state = rememberDraggableState { delta ->
 					scope.launch {
@@ -194,10 +193,14 @@ fun GameRow(
 
 						if (shouldOpen) {
 							val remaining = rowWidthPx - offsetAnim.value
-							val durationToEnd = (remaining / (velocity.coerceAtLeast(800f) * 0.8f) * 1000).toInt()
-								.coerceIn(80, 220)
+							val durationToEnd =
+								(remaining / (velocity.coerceAtLeast(800f) * 0.8f) * 1000).toInt()
+									.coerceIn(80, 220)
 
-							offsetAnim.animateTo(rowWidthPx, tween(durationToEnd, easing = LinearOutSlowInEasing))
+							offsetAnim.animateTo(
+								rowWidthPx,
+								tween(durationToEnd, easing = LinearOutSlowInEasing)
+							)
 
 							showSheet = true
 
@@ -205,8 +208,11 @@ fun GameRow(
 						} else {
 							offsetAnim.animateTo(0f, tween(180))
 						}
+
+						onSlideStopped()
 					}
-				}
+				},
+				onDragStarted = { onSlideStarted() }
 			)
 	) {
 		Box(
@@ -266,7 +272,8 @@ fun GameRow(
 				Image(
 					bitmap = game.icon.toBitmap().asImageBitmap(),
 					contentDescription = null,
-					modifier = Modifier.size(56.dp)
+					modifier = Modifier
+						.size(56.dp)
 						.clip(RoundedCornerShape(16.dp))
 				)
 				Spacer(modifier = Modifier.width(16.dp))
@@ -275,19 +282,7 @@ fun GameRow(
 					style = MaterialTheme.typography.titleMedium,
 					modifier = Modifier.weight(1f)
 				)
-				if(showDeleteButton){
-					IconButton(
-						onClick = onDelete
-					) {
-						Icon(
-							imageVector = Icons.Default.Delete,
-							contentDescription = "Delete",
-							tint = MaterialTheme.colorScheme.error,
-						)
-					}
-				} else if (showDraggableButton) {
-					iconButton()
-				}
+				iconButton()
 			}
 		}
 	}
