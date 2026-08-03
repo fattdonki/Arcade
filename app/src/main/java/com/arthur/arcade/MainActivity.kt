@@ -8,6 +8,8 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.VibratorManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -18,6 +20,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,17 +70,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.arthur.arcade.ui.components.CheckPermissions
 import com.arthur.arcade.ui.components.GameRow
+import com.arthur.arcade.ui.components.shake
 import com.arthur.arcade.ui.theme.ArcadeTheme
 import com.arthur.arcade.vpn.VpnHandler
 import com.arthur.arcade.vpn.VpnHandlerImpl
@@ -104,6 +114,8 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 	) { }
 
 	override fun onCreate(savedInstanceState: Bundle?) {
+		installSplashScreen()
+
 		super.onCreate(savedInstanceState)
 		enableEdgeToEdge()
 		initVpnHandler(this)
@@ -134,6 +146,10 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 		}
 	}
 }
+
+val JacquardFontFamily: FontFamily = FontFamily(
+	Font(R.font.jacquard_24, FontWeight.Normal)
+)
 
 data class GameProfile(
 	var doNotDisturbOn: Boolean? = null,
@@ -214,6 +230,9 @@ class AppListViewModel(application: Application) : AndroidViewModel(application)
 @Composable
 fun Home(modifier: Modifier = Modifier) {
 	val context = LocalContext.current
+
+	var isEasterEggActive by remember { mutableStateOf(false) }
+	var isCharging by remember { mutableStateOf(false) }
 
 	var slidePermission: String? by remember { mutableStateOf(null) }
 
@@ -301,7 +320,40 @@ fun Home(modifier: Modifier = Modifier) {
 			Text(
 				text = "Arcade",
 				style = MaterialTheme.typography.displayMedium,
-				fontWeight = FontWeight.Black
+				fontWeight = FontWeight.Black,
+				fontFamily = if (isEasterEggActive) JacquardFontFamily else FontFamily.Default,
+				modifier = Modifier
+					.shake(isCharging)
+					.pointerInput(isEasterEggActive) {
+						awaitEachGesture {
+							awaitFirstDown(requireUnconsumed = false)
+
+							if (isEasterEggActive) {
+								isEasterEggActive = false
+								return@awaitEachGesture
+							}
+
+							isCharging = true
+							startVibrating(context)
+
+							var completedHold = false
+
+							withTimeoutOrNull(3000L) {
+								waitForUpOrCancellation()
+
+								completedHold = false
+							} ?: run {
+								completedHold = true
+							}
+
+							isCharging = false
+							stopVibrating(context)
+
+							if (completedHold) {
+								isEasterEggActive = true
+							}
+						}
+					}
 			)
 
 			Spacer(modifier = Modifier.height(24.dp))
@@ -685,6 +737,23 @@ fun Home(modifier: Modifier = Modifier) {
 			}
 		}
 	}
+}
+
+fun startVibrating(context: Context) {
+	val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+	val vibrator = vibratorManager.defaultVibrator
+
+	if (vibrator.hasVibrator()) {
+		val timings = longArrayOf(0, 100, 50)
+		val amplitudes = intArrayOf(0, 255, 0)
+		vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, 0))
+	}
+}
+
+fun stopVibrating(context: Context) {
+	val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+	val vibrator = vibratorManager.defaultVibrator
+	vibrator.cancel()
 }
 
 enum class Position(val topCr: Dp, val bottomCr: Dp) {
