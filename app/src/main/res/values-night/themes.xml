@@ -4,7 +4,7 @@
     <style name="Theme.Arcade" parent="android:Theme.Material.Light.NoActionBar" />
     
     <style name="Theme.Arcade.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@android:color/background_dark</item>
+        <item name="windowSplashScreenBackground">@android:color/system_accent2_900</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_night</item>
         <item name="postSplashScreenTheme">@style/Theme.Arcade</item>
     </style>
