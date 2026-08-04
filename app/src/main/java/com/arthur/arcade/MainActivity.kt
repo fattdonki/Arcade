@@ -520,11 +520,8 @@ fun Home(modifier: Modifier = Modifier) {
 							}
 						}
 					}
-
-					if (showDeleteButton or showDraggableButton) {
-						item {
-							Spacer(Modifier.height(88.dp))
-						}
+					item {
+						Spacer(Modifier.height(88.dp))
 					}
 				}
 			}
