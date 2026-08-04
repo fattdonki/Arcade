@@ -1,0 +1,3 @@
+You can now freely reorder games, and group them, for example, by genre.
+The FAB button is now used more consistently throughout the app.
+The splashscreen is now adaptive.
