@@ -11,8 +11,8 @@ android {
 		applicationId = "com.arthur.arcade"
 		minSdk = 33
 		targetSdk = 37
-		versionCode = 100
-		versionName = "1.0"
+		versionCode = 101
+		versionName = "1.1"
 
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 	}
