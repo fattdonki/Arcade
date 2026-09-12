@@ -22,16 +22,44 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.arthur.arcade.MainActivity
 
+
+enum class Permissions {
+	DND,
+	VPN,
+	Notifications
+}
+
 @Composable
 @Suppress("ASSIGNED_VALUE_IS_NEVER_READ")
-fun CheckPermissions(context: Context) {
+fun CheckPermissions(
+	context: Context,
+	permissions: List<Permissions> = listOf(
+		Permissions.DND, Permissions.VPN, Permissions.Notifications
+	),
+	onDone: () -> Unit,
+) {
 	val notificationManager = remember(context) {
 		context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 	}
 
-	var showDndDialog by remember { mutableStateOf(!notificationManager.isNotificationPolicyAccessGranted) }
-	var showVpnDialog by remember { mutableStateOf(VpnService.prepare(context) != null) }
-	var showNotificationDialog by remember { mutableStateOf(!notificationManager.areNotificationsEnabled())}
+	var showDndDialog by remember {
+		mutableStateOf(
+			!notificationManager.isNotificationPolicyAccessGranted
+				&& permissions.contains(Permissions.DND)
+		)
+	}
+	var showVpnDialog by remember {
+		mutableStateOf(
+			VpnService.prepare(context) != null
+					&& permissions.contains(Permissions.VPN)
+		)
+	}
+	var showNotificationDialog by remember {
+		mutableStateOf(
+			!notificationManager.areNotificationsEnabled()
+					&& permissions.contains(Permissions.Notifications)
+		)
+	}
 
 	if (showDndDialog) {
 		AlertDialog(
@@ -145,5 +173,9 @@ fun CheckPermissions(context: Context) {
 				}
 			}
 		)
+	}
+
+	if (!showDndDialog && !showVpnDialog && !showNotificationDialog) {
+		onDone()
 	}
 }

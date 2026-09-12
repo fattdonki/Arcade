@@ -83,12 +83,13 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
+import com.arthur.arcade.firewall.PermissionManager
+import com.arthur.arcade.firewall.VpnHandler
+import com.arthur.arcade.firewall.VpnHandlerImpl
 import com.arthur.arcade.ui.components.CheckPermissions
 import com.arthur.arcade.ui.components.GameRow
 import com.arthur.arcade.ui.components.shake
 import com.arthur.arcade.ui.theme.ArcadeTheme
-import com.arthur.arcade.vpn.VpnHandler
-import com.arthur.arcade.vpn.VpnHandlerImpl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -103,15 +104,21 @@ import kotlin.time.Duration.Companion.milliseconds
 class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 	val vpnPermissionLauncher = registerForActivityResult(
 		ActivityResultContracts.StartActivityForResult()
-	) { }
+	) {
+		PermissionManager.refresh(this)
+	}
 
 	val notificationPermissionLauncher = registerForActivityResult(
 		ActivityResultContracts.RequestPermission()
-	) { }
+	) { isGranted ->
+		PermissionManager.onNotificationResult(isGranted)
+	}
 
 	val dndPermissionLauncher = registerForActivityResult(
 		ActivityResultContracts.StartActivityForResult()
-	) { }
+	) {
+		PermissionManager.refresh(this)
+	}
 
 	override fun onCreate(savedInstanceState: Bundle?) {
 		installSplashScreen()
@@ -128,22 +135,35 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 						mutableStateOf(!SettingsRepository.hasSeenOnboarding(context))
 					}
 
+					var checkPermissions by remember {
+						mutableStateOf(false)
+					}
+
 					if (showOnboarding) {
 						Onboarding(
 							Modifier.padding(innerPadding),
 							onContinue = {
-								SettingsRepository.setHasSeenOnboarding(context)
-								showOnboarding = false
+								checkPermissions = true
 							}
 						)
+						if (checkPermissions){
+							CheckPermissions(context) {
+								showOnboarding = false
+								checkPermissions = false
+								SettingsRepository.setHasSeenOnboarding(context)
+							}
+						}
 					} else {
-						CheckPermissions(context)
-
 						Home(Modifier.padding(innerPadding))
 					}
 				}
 			}
 		}
+	}
+
+	override fun onResume() {
+		super.onResume()
+		PermissionManager.refresh(this)
 	}
 }
 

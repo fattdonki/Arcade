@@ -1,4 +1,4 @@
-package com.arthur.arcade.vpn
+package com.arthur.arcade.firewall
 
 import android.annotation.SuppressLint
 import android.app.NotificationChannel

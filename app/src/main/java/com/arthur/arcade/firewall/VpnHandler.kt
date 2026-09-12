@@ -1,4 +1,4 @@
-package com.arthur.arcade.vpn
+package com.arthur.arcade.firewall
 
 import android.app.Activity.RESULT_OK
 import android.content.Intent

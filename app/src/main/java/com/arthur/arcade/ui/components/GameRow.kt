@@ -35,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -44,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -64,10 +66,12 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.arthur.arcade.GameApp
 import com.arthur.arcade.Position
 import com.arthur.arcade.SettingsRepository
 import com.arthur.arcade.applyProfile
+import com.arthur.arcade.firewall.PermissionManager
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,10 +105,24 @@ fun GameRow(
 	var renameValue by remember { mutableStateOf(game.name) }
 	var profile by remember { mutableStateOf(game.profile) }
 
+	val notificationsAllowed by PermissionManager.notificationsEnabled.collectAsStateWithLifecycle()
+	val vpnAllowed by PermissionManager.vpnGranted.collectAsStateWithLifecycle()
+	val firewallAvailable = remember(notificationsAllowed, vpnAllowed) {
+		notificationsAllowed && vpnAllowed
+	}
+	val dndAvailable by PermissionManager.dndEnabled.collectAsStateWithLifecycle()
+	val checkPermissions = remember { mutableStateListOf<Permissions>() }
+
 	LaunchedEffect(offsetAnim.value > 0f) {
 		if (offsetAnim.value > 0f) {
 			rotation.snapTo(0f)
 			rotation.animateTo(360f, animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing))
+		}
+	}
+
+	if (checkPermissions.isNotEmpty()) {
+		CheckPermissions(context, checkPermissions) {
+			checkPermissions.clear()
 		}
 	}
 
@@ -150,25 +168,116 @@ fun GameRow(
 					}
 				)
 				Spacer(modifier = Modifier.height(8.dp))
-				RadioGroup("Do Not Disturb", profile.doNotDisturbOn) {
-					profile = game.profile.copy(doNotDisturbOn = it)
-					game.profile = profile
-					SettingsRepository.saveProfile(context, game.packageName, profile)
-				}
-				Row(
-					modifier = Modifier.fillMaxWidth(),
-					verticalAlignment = Alignment.CenterVertically,
-					horizontalArrangement = Arrangement.SpaceBetween
-				) {
-					Text("Block Internet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-					Switch(
-						checked = profile.blockInternet,
-						onCheckedChange = {
-							profile = profile.copy(blockInternet = it)
-							game.profile = profile
-							SettingsRepository.saveProfile(context, game.packageName, profile)
-						}
+
+				Box{
+					val options = listOf(
+						null to "Don't change",
+						true to "Always turn on",
+						false to "Always turn off"
 					)
+					Column(Modifier.fillMaxWidth()){
+
+						Text(
+							text = "Do Not Disturb",
+							style = MaterialTheme.typography.titleMedium,
+							fontWeight = FontWeight.SemiBold,
+							color = if (!dndAvailable) {
+								MaterialTheme.colorScheme.onSurfaceVariant
+							} else {
+								MaterialTheme.colorScheme.onSurface
+							}
+						)
+
+						Spacer(modifier = Modifier.height(4.dp))
+						options.forEach { (optionValue, optionLabel) ->
+							val onSelectOption = {
+								profile = game.profile.copy(doNotDisturbOn = optionValue)
+								game.profile = profile
+								SettingsRepository.saveProfile(
+									context,
+									game.packageName,
+									profile
+								)
+							}
+
+
+
+							Row(
+								modifier = Modifier
+									.fillMaxWidth()
+									.clickable(onClick = onSelectOption)
+									.padding(vertical = 4.dp),
+								verticalAlignment = Alignment.CenterVertically
+							) {
+								RadioButton(
+									selected = profile.doNotDisturbOn == optionValue,
+									onClick = onSelectOption,
+									enabled = dndAvailable
+								)
+								Spacer(modifier = Modifier.width(8.dp))
+								Text(
+									text = optionLabel,
+									style = MaterialTheme.typography.bodyMedium,
+									color = if (!dndAvailable) {
+										MaterialTheme.colorScheme.onSurfaceVariant
+									} else {
+										MaterialTheme.colorScheme.onSurface
+									}
+								)
+							}
+
+						}
+					}
+					if (!dndAvailable) {
+						Box(
+							modifier = Modifier
+								.matchParentSize()
+								.clickable(
+									onClick = { checkPermissions.add(Permissions.DND) }
+								)
+						)
+					}
+				}
+				Box{
+					Row(
+						modifier = Modifier
+							.fillMaxWidth(),
+						verticalAlignment = Alignment.CenterVertically,
+						horizontalArrangement = Arrangement.SpaceBetween
+					) {
+						Text(
+							"Block Internet",
+							style = MaterialTheme.typography.titleMedium,
+							fontWeight = FontWeight.SemiBold,
+							color = if (!firewallAvailable) {
+								MaterialTheme.colorScheme.onSurfaceVariant
+							} else {
+								MaterialTheme.colorScheme.onSurface
+							}
+						)
+						Switch(
+							enabled = firewallAvailable,
+							checked = profile.blockInternet,
+							onCheckedChange = {
+								profile = profile.copy(blockInternet = it)
+								game.profile = profile
+								SettingsRepository.saveProfile(context, game.packageName, profile)
+							}
+						)
+					}
+					if (!firewallAvailable) {
+						Box(
+							modifier = Modifier
+								.matchParentSize()
+								.clickable(
+									onClick = {
+										checkPermissions.addAll(
+											listOf(Permissions.VPN, Permissions.Notifications)
+										)
+									}
+								)
+						)
+					}
 				}
 				Spacer(Modifier.height(8.dp))
 			}

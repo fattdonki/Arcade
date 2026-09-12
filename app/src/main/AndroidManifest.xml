@@ -30,7 +30,7 @@
 
         <!-->Google Play Store requires that apps using a VPN service are primarily
         VPN apps. Tools:ignore ignores the warning.</!-->
-        <service android:name=".vpn.BlackHoleVpn"
+        <service android:name=".firewall.BlackHoleVpn"
             android:exported="true"
             android:permission="android.permission.BIND_VPN_SERVICE"
             android:foregroundServiceType="specialUse"
