@@ -129,7 +129,7 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 		super.onCreate(savedInstanceState)
 		enableEdgeToEdge()
 		initVpnHandler(this)
-		ShizukuManager.bind()
+		ShizukuManager.bind(LocalContext.current)
 
 		Shizuku.addRequestPermissionResultListener { _, grantResult ->
 			PermissionManager.onShizukuPermissionResult(grantResult == PackageManager.PERMISSION_GRANTED)
@@ -161,7 +161,7 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 							CheckPermissions(context) {
 								checkPermissions = false
 								SettingsRepository.setHasSeenOnboarding(context)
-								ShizukuManager.bind()
+								ShizukuManager.bind(context)
 							}
 						}
 						Home(Modifier.padding(innerPadding))
@@ -1061,6 +1061,14 @@ object SettingsRepository {
 
 		root.put("spacerIndices", JSONArray(indices))
 		saveFile(context, root)
+	}
+
+	fun loadAllBlockedPackages(context: Context): List<String> {
+		val root = loadFile(context)
+		return root.keys().asSequence()
+			.filter { it.contains(".") }
+			.filter { root.optJSONObject(it)?.optBoolean("blockInternet", false) == true }
+			.toList()
 	}
 
 	private fun JSONArray.indexOfString(target: String): Int {

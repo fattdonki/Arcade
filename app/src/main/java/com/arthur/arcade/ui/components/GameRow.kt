@@ -296,9 +296,13 @@ fun GameRow(
 								.matchParentSize()
 								.clickable(
 									onClick = {
-										checkPermissions.addAll(
-											listOf(Permissions.VPN, Permissions.Notifications)
-										)
+										if (shizukuState == ShizukuState.NotRunning){
+											checkPermissions.addAll(
+												listOf(Permissions.VPN, Permissions.Notifications)
+											)
+										} else {
+											checkPermissions.add(Permissions.Shizuku)
+										}
 									}
 								)
 						)

@@ -29,7 +29,7 @@ object PermissionManager {
 	val shizukuState: StateFlow<ShizukuState> = _shizukuState.asStateFlow()
 
 	fun refresh(context: Context) {
-		val appContext = context.applicationContext // Use ApplicationContext to prevent memory leaks
+		val appContext = context.applicationContext
 		val notificationManager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
 		_notificationsEnabled.value = notificationManager.areNotificationsEnabled()
