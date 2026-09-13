@@ -4,9 +4,11 @@ import android.Manifest
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.VpnService
 import android.provider.Settings
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Adb
 import androidx.compose.material.icons.filled.DoNotDisturbOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.VpnKey
@@ -21,20 +23,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.arthur.arcade.MainActivity
+import com.arthur.arcade.firewall.PermissionManager
+import com.arthur.arcade.firewall.ShizukuState
+import rikka.shizuku.Shizuku
 
 
 enum class Permissions {
 	DND,
 	VPN,
-	Notifications
+	Notifications,
+	Shizuku,
+	UpgradeToShizuku
 }
 
+const val REQUEST_CODE: Int = 8080
+
+
 @Composable
-@Suppress("ASSIGNED_VALUE_IS_NEVER_READ")
 fun CheckPermissions(
 	context: Context,
 	permissions: List<Permissions> = listOf(
-		Permissions.DND, Permissions.VPN, Permissions.Notifications
+		Permissions.DND, Permissions.VPN, Permissions.Notifications, Permissions.Shizuku
 	),
 	onDone: () -> Unit,
 ) {
@@ -52,13 +61,27 @@ fun CheckPermissions(
 		mutableStateOf(
 			VpnService.prepare(context) != null
 					&& permissions.contains(Permissions.VPN)
+					&& PermissionManager.shizukuState.value == ShizukuState.NotRunning
 		)
 	}
 	var showNotificationDialog by remember {
 		mutableStateOf(
 			!notificationManager.areNotificationsEnabled()
 					&& permissions.contains(Permissions.Notifications)
+					&& PermissionManager.shizukuState.value == ShizukuState.NotRunning
 		)
+	}
+
+	var showShizuku by remember {
+		mutableStateOf(
+			Shizuku.pingBinder()
+					&& Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED
+					&& permissions.contains(Permissions.Shizuku)
+		)
+	}
+
+	var showUpgradeToShizuku by remember {
+		mutableStateOf(permissions.contains(Permissions.UpgradeToShizuku))
 	}
 
 	if (showDndDialog) {
@@ -94,7 +117,7 @@ fun CheckPermissions(
 			},
 			dismissButton = {
 				TextButton(onClick = { showDndDialog = false }) {
-					Text("Cancel")
+					Text("No thanks")
 				}
 			}
 		)
@@ -133,7 +156,7 @@ fun CheckPermissions(
 			},
 			dismissButton = {
 				TextButton(onClick = { showVpnDialog = false }) {
-					Text("Cancel")
+					Text("No thanks")
 				}
 			}
 		)
@@ -169,13 +192,90 @@ fun CheckPermissions(
 			},
 			dismissButton = {
 				TextButton(onClick = { showNotificationDialog = false }) {
-					Text("Cancel")
+					Text("No thanks")
+				}
+			}
+		)
+	} else if (showShizuku) {
+		AlertDialog(
+			onDismissRequest = { showShizuku = false },
+			icon = {
+				Icon(
+					imageVector = Icons.Default.Adb,
+					contentDescription = "Adb"
+				)
+			},
+			title = {
+				Text("Shizuku Permission", style = MaterialTheme.typography.titleMedium)
+			},
+			text = {
+				Text(
+					"Arcade supports a Shizuku powered firewall for the best performance.",
+					style = MaterialTheme.typography.bodyMedium
+				)
+			},
+			confirmButton = {
+				TextButton(
+					onClick = {
+						Shizuku.requestPermission(REQUEST_CODE)
+						showShizuku = false
+					}
+				) {
+					Text("Grant Permission")
+				}
+			},
+			dismissButton = {
+				TextButton(
+					onClick = {
+						showNotificationDialog = true
+						showVpnDialog = true
+						showShizuku = false
+					}
+				) {
+					Text("No thanks")
+				}
+			}
+		)
+	} else if (showUpgradeToShizuku) {
+		AlertDialog(
+			onDismissRequest = { showUpgradeToShizuku = false },
+			icon = {
+				Icon(
+					imageVector = Icons.Default.Adb,
+					contentDescription = "Adb"
+				)
+			},
+			title = {
+				Text("Upgrade to Shizuku", style = MaterialTheme.typography.titleMedium)
+			},
+			text = {
+				Text(
+					"Arcade supports a Shizuku powered firewall for the best performance. It will " +
+							"significantly reduce background power draw compared to using a VPN.",
+					style = MaterialTheme.typography.bodyMedium
+				)
+			},
+			confirmButton = {
+				TextButton(
+					onClick = {
+						Shizuku.requestPermission(REQUEST_CODE)
+						showUpgradeToShizuku = false
+					}
+				) {
+					Text("Grant Permission")
+				}
+			},
+			dismissButton = {
+				TextButton(
+					onClick = { showUpgradeToShizuku = false }
+				) {
+					Text("No thanks")
 				}
 			}
 		)
 	}
 
-	if (!showDndDialog && !showVpnDialog && !showNotificationDialog) {
+	if (!showDndDialog && !showVpnDialog && !showNotificationDialog && !showShizuku && !showUpgradeToShizuku) {
 		onDone()
 	}
 }

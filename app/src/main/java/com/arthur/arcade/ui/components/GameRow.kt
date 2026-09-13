@@ -28,10 +28,12 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Upgrade
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -72,6 +74,8 @@ import com.arthur.arcade.Position
 import com.arthur.arcade.SettingsRepository
 import com.arthur.arcade.applyProfile
 import com.arthur.arcade.firewall.PermissionManager
+import com.arthur.arcade.firewall.ShizukuManager
+import com.arthur.arcade.firewall.ShizukuState
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,9 +111,9 @@ fun GameRow(
 
 	val notificationsAllowed by PermissionManager.notificationsEnabled.collectAsStateWithLifecycle()
 	val vpnAllowed by PermissionManager.vpnGranted.collectAsStateWithLifecycle()
-	val firewallAvailable = remember(notificationsAllowed, vpnAllowed) {
-		notificationsAllowed && vpnAllowed
-	}
+	val shizukuState by PermissionManager.shizukuState.collectAsStateWithLifecycle()
+	val firewallAvailable = (notificationsAllowed && vpnAllowed) || shizukuState == ShizukuState.Ready
+	val showUpgradeToShizuku = vpnAllowed && shizukuState == ShizukuState.NeedsPermission
 	val dndAvailable by PermissionManager.dndEnabled.collectAsStateWithLifecycle()
 	val checkPermissions = remember { mutableStateListOf<Permissions>() }
 
@@ -245,16 +249,33 @@ fun GameRow(
 						verticalAlignment = Alignment.CenterVertically,
 						horizontalArrangement = Arrangement.SpaceBetween
 					) {
-						Text(
-							"Block Internet",
-							style = MaterialTheme.typography.titleMedium,
-							fontWeight = FontWeight.SemiBold,
-							color = if (!firewallAvailable) {
-								MaterialTheme.colorScheme.onSurfaceVariant
-							} else {
-								MaterialTheme.colorScheme.onSurface
+						Row(
+							verticalAlignment = Alignment.CenterVertically,
+						) {
+							Text(
+								"Block Internet",
+								style = MaterialTheme.typography.titleMedium,
+								fontWeight = FontWeight.SemiBold,
+								color = if (!firewallAvailable) {
+									MaterialTheme.colorScheme.onSurfaceVariant
+								} else {
+									MaterialTheme.colorScheme.onSurface
+								}
+							)
+							if (showUpgradeToShizuku) {
+								IconButton(
+									onClick = {
+										checkPermissions.add(Permissions.UpgradeToShizuku)
+									}
+								) {
+									Icon(
+										imageVector = Icons.Default.Upgrade,
+										contentDescription = "Upgrade"
+									)
+								}
 							}
-						)
+
+						}
 						Switch(
 							enabled = firewallAvailable,
 							checked = profile.blockInternet,
@@ -262,6 +283,10 @@ fun GameRow(
 								profile = profile.copy(blockInternet = it)
 								game.profile = profile
 								SettingsRepository.saveProfile(context, game.packageName, profile)
+								if (ShizukuManager.isShizukuRunning) {
+									if (it) ShizukuManager.block(game.packageName)
+									else ShizukuManager.unblock(game.packageName)
+								}
 							}
 						)
 					}

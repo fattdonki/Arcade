@@ -84,6 +84,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.arthur.arcade.firewall.PermissionManager
+import com.arthur.arcade.firewall.ShizukuManager
+import com.arthur.arcade.firewall.ShizukuState
 import com.arthur.arcade.firewall.VpnHandler
 import com.arthur.arcade.firewall.VpnHandlerImpl
 import com.arthur.arcade.ui.components.CheckPermissions
@@ -96,6 +98,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import rikka.shizuku.Shizuku
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.io.File
@@ -126,6 +129,12 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 		super.onCreate(savedInstanceState)
 		enableEdgeToEdge()
 		initVpnHandler(this)
+		ShizukuManager.bind()
+
+		Shizuku.addRequestPermissionResultListener { _, grantResult ->
+			PermissionManager.onShizukuPermissionResult(grantResult == PackageManager.PERMISSION_GRANTED)
+		}
+
 		setContent {
 			ArcadeTheme {
 				Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -144,16 +153,17 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 							Modifier.padding(innerPadding),
 							onContinue = {
 								checkPermissions = true
+								showOnboarding = false
 							}
 						)
+					} else {
 						if (checkPermissions){
 							CheckPermissions(context) {
-								showOnboarding = false
 								checkPermissions = false
 								SettingsRepository.setHasSeenOnboarding(context)
+								ShizukuManager.bind()
 							}
 						}
-					} else {
 						Home(Modifier.padding(innerPadding))
 					}
 				}
@@ -164,6 +174,12 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 	override fun onResume() {
 		super.onResume()
 		PermissionManager.refresh(this)
+	}
+
+	override fun onDestroy() {
+		super.onDestroy()
+		ShizukuManager.disableFirewall()
+		ShizukuManager.unbind()
 	}
 }
 
@@ -1069,9 +1085,11 @@ fun applyProfile(context: Context, game: GameApp) {
 		}
 	}
 
-	if (game.profile.blockInternet) {
-		if (context is VpnHandler) {
-			context.checkAndStartVpn(game.packageName)
+	if (PermissionManager.shizukuState.value != ShizukuState.Ready) {
+		if (game.profile.blockInternet) {
+			if (context is VpnHandler) {
+				context.checkAndStartVpn(game.packageName)
+			}
 		}
 	}
 }

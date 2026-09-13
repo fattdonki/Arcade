@@ -39,6 +39,8 @@ android {
 	buildFeatures {
 		compose = true
 		resValues = true
+		aidl = true
+		buildConfig = true
 	}
 	dependenciesInfo {
 		includeInApk = false
@@ -68,4 +70,6 @@ dependencies {
 	debugImplementation(libs.androidx.compose.ui.tooling)
 	debugImplementation(libs.androidx.compose.ui.test.manifest)
 	implementation(libs.androidx.lifecycle.viewmodel.compose)
+	implementation(libs.shizuku.api)
+	implementation(libs.shizuku.provider)
 }
