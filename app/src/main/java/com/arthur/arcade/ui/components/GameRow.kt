@@ -84,7 +84,7 @@ fun GameRow(
 	game: GameApp,
 	iconButton: @Composable () -> Unit,
 	position: Position,
-	slideEnabled: Boolean,
+	enabled: Boolean,
 	onSlideStarted: () -> Unit,
 	onSlideStopped: () -> Unit,
 ) {
@@ -318,7 +318,7 @@ fun GameRow(
 			.fillMaxWidth()
 			.onSizeChanged { rowWidthPx = it.width.toFloat() }
 			.draggable(
-				enabled = slideEnabled,
+				enabled = enabled,
 				orientation = Orientation.Horizontal,
 				state = rememberDraggableState { delta ->
 					scope.launch {
@@ -386,12 +386,15 @@ fun GameRow(
 			modifier = Modifier
 				.fillMaxWidth()
 				.offset { IntOffset(offsetAnim.value.toInt(), 0) }
-				.clickable {
-					applyProfile(context, game)
-					context.packageManager
-						.getLaunchIntentForPackage(game.packageName)
-						?.let { context.startActivity(it) }
-				},
+				.clickable (
+					enabled = enabled,
+					onClick = {
+						applyProfile(context, game)
+						context.packageManager
+							.getLaunchIntentForPackage(game.packageName)
+							?.let { context.startActivity(it) }
+					}
+				),
 			shape = RoundedCornerShape(
 				topStart = position.topCr, topEnd = position.topCr,
 				bottomStart = position.bottomCr, bottomEnd = position.bottomCr

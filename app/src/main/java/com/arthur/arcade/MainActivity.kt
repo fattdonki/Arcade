@@ -129,7 +129,7 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 		super.onCreate(savedInstanceState)
 		enableEdgeToEdge()
 		initVpnHandler(this)
-		ShizukuManager.bind(LocalContext.current)
+		ShizukuManager.bind(this)
 
 		Shizuku.addRequestPermissionResultListener { _, grantResult ->
 			PermissionManager.onShizukuPermissionResult(grantResult == PackageManager.PERMISSION_GRANTED)
@@ -496,6 +496,12 @@ fun Home(modifier: Modifier = Modifier) {
 																gameOrNull.packageName
 															)
 															games = getGames(context)
+															spacerIndices = (spacerIndices ?: emptyList())
+																.map {
+																	if (it >= rawGameIndex) it - 1
+																	else it
+																}
+																.distinct().filter { it in 0 until games.lastIndex }.sorted()
 														},
 													) {
 														Icon(
@@ -533,7 +539,7 @@ fun Home(modifier: Modifier = Modifier) {
 											!isGroupExpanded && !showDeleteButton && !showDraggableButton
 										),
 
-										slideEnabled = !showDeleteButton && !showDraggableButton &&
+										enabled = !showDeleteButton && !showDraggableButton &&
 												(slidePermission == null || slidePermission == gameOrNull.packageName),
 
 
@@ -574,19 +580,24 @@ fun Home(modifier: Modifier = Modifier) {
 			BackHandler(expanded) { expanded = false }
 
 			FloatingActionButtonMenu(
-				expanded = expanded && !showDeleteButton,
+				expanded = expanded,
 				button = {
 					ToggleFloatingActionButton(
-						checked = if (showDeleteButton) false else expanded,
+						checked = expanded,
 						onCheckedChange = { checked ->
 							if (showDeleteButton) {
 								showDeleteButton = false
+								SettingsRepository.setCustomOrder(
+									context,
+									games.map { it.packageName })
+								SettingsRepository.setIndices(context, spacerIndices ?: emptyList())
+
 							} else if (showDraggableButton) {
 								showDraggableButton = false
 								SettingsRepository.setCustomOrder(
 									context,
 									games.map { it.packageName })
-								SettingsRepository.setIndices(context, spacerIndices ?: listOf())
+								SettingsRepository.setIndices(context, spacerIndices ?: emptyList())
 							} else {
 								expanded = checked
 							}
@@ -609,47 +620,45 @@ fun Home(modifier: Modifier = Modifier) {
 					}
 				}
 			) {
-				if (!showDeleteButton) {
-					FloatingActionButtonMenuItem(
-						onClick = {
-							showDraggableButton = true
-							expanded = false
-						},
-						text = { Text("Organise Games") },
-						icon = {
-							Icon(
-								Icons.Default.DragIndicator,
-								contentDescription = "Drag Indicator"
-							)
-						}
-					)
-					FloatingActionButtonMenuItem(
-						onClick = {
-							showDeleteButton = true
-							expanded = false
-						},
-						text = { Text("Remove Game") },
-						icon = {
-							Icon(
-								Icons.Default.Delete,
-								contentDescription = "Delete"
-							)
-						}
-					)
-					FloatingActionButtonMenuItem(
-						onClick = {
-							showAddAppSheet = true
-							expanded = false
-						},
-						text = { Text("Add Game") },
-						icon = {
-							Icon(
-								Icons.Default.Add,
-								contentDescription = "Add"
-							)
-						}
-					)
-				}
+				FloatingActionButtonMenuItem(
+					onClick = {
+						showDraggableButton = true
+						expanded = false
+					},
+					text = { Text("Organise Games") },
+					icon = {
+						Icon(
+							Icons.Default.DragIndicator,
+							contentDescription = "Drag Indicator"
+						)
+					}
+				)
+				FloatingActionButtonMenuItem(
+					onClick = {
+						showDeleteButton = true
+						expanded = false
+					},
+					text = { Text("Remove Game") },
+					icon = {
+						Icon(
+							Icons.Default.Delete,
+							contentDescription = "Delete"
+						)
+					}
+				)
+				FloatingActionButtonMenuItem(
+					onClick = {
+						showAddAppSheet = true
+						expanded = false
+					},
+					text = { Text("Add Game") },
+					icon = {
+						Icon(
+							Icons.Default.Add,
+							contentDescription = "Add"
+						)
+					}
+				)
 			}
 		}
 	}
