@@ -1,0 +1,1 @@
+Arcade now supports Shizuku powered internet blocking. This will significantly reduce power usage to ~0%. To start using Shizuku, press the info icon that appears in a game's settings page. Permissions will only be asked for on the first launch of the app, not every time you open it if you choose to not grant the permission.
