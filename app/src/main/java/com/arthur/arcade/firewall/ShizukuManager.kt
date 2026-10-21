@@ -42,7 +42,7 @@ object ShizukuManager {
 
 	fun bind(context: Context) {
 		appContext = context.applicationContext
-		if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+		if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
 			Shizuku.bindUserService(serviceArgs, connection)
 			Log.d("ShizukuManager", "Bind called")
 		}
