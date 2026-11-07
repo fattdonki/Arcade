@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+-keep class com.arthur.arcade.firewall.FirewallUserService { <init>(); }
+-keep class com.arthur.arcade.IFirewallService { *; }
+-keep class com.arthur.arcade.IFirewallService$Stub { *; }
