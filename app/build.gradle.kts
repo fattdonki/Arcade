@@ -5,7 +5,11 @@ plugins {
 
 android {
 	namespace = "com.arthur.arcade"
-	compileSdk = 37
+	compileSdk {
+		version = release(37) {
+			minorApiLevel = 1
+		}
+	}
 
 	defaultConfig {
 		applicationId = "com.arthur.arcade"
@@ -61,6 +65,7 @@ dependencies {
 	implementation(libs.androidx.compose.ui.tooling.preview)
 	implementation(libs.androidx.compose.material3)
 	implementation(libs.androidx.compose.material.icons.extended)
+	implementation(libs.androidx.ui.graphics)
 	implementation(libs.coil.compose)
 	implementation(libs.reorderable)
 	testImplementation(libs.junit)

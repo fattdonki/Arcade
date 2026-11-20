@@ -19,10 +19,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,20 +46,27 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.runtime.Composable
@@ -66,10 +75,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
@@ -136,9 +147,16 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 		}
 
 		setContent {
-			ArcadeTheme {
+			val context = LocalContext.current
+
+			val system = if (isSystemInDarkTheme()) Theme.Dark else Theme.Light
+
+			var theme by rememberSaveable {
+				mutableStateOf(SettingsRepository.loadTheme(context, system))
+			}
+
+			ArcadeTheme(theme) {
 				Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-					val context = LocalContext.current
 
 					var showOnboarding by remember {
 						mutableStateOf(!SettingsRepository.hasSeenOnboarding(context))
@@ -164,7 +182,14 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 								ShizukuManager.bind(context)
 							}
 						}
-						Home(Modifier.padding(innerPadding))
+						Home(
+							Modifier.padding(innerPadding),
+							theme,
+							onThemeSelected = { newTheme ->
+								theme = newTheme
+								SettingsRepository.saveTheme(context, newTheme)
+							}
+						)
 					}
 				}
 			}
@@ -262,9 +287,9 @@ class AppListViewModel(application: Application) : AndroidViewModel(application)
 	}
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun Home(modifier: Modifier = Modifier) {
+fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -> Unit) {
 	val context = LocalContext.current
 
 	var isEasterEggActive by remember { mutableStateOf(false) }
@@ -280,6 +305,7 @@ fun Home(modifier: Modifier = Modifier) {
 	val isCategorised = remember(spacerIndices) { spacerIndices?.isNotEmpty() ?: false }
 
 	var showAddAppSheet by remember { mutableStateOf(false) }
+	var showSettingsSheet by remember { mutableStateOf(false) }
 	var showDeleteButton by remember { mutableStateOf(false) }
 	var showDraggableButton by remember { mutableStateOf(false) }
 
@@ -622,6 +648,19 @@ fun Home(modifier: Modifier = Modifier) {
 			) {
 				FloatingActionButtonMenuItem(
 					onClick = {
+						showSettingsSheet = true
+						expanded = false
+					},
+					text = { Text("Settings") },
+					icon = {
+						Icon(
+							Icons.Default.Settings,
+							contentDescription = "Settings"
+						)
+					}
+				)
+				FloatingActionButtonMenuItem(
+					onClick = {
 						showDraggableButton = true
 						expanded = false
 					},
@@ -681,7 +720,7 @@ fun Home(modifier: Modifier = Modifier) {
 						.fillMaxWidth()
 						.height(200.dp), contentAlignment = Alignment.Center
 				) {
-					CircularProgressIndicator()
+					LoadingIndicator()
 				}
 			} else {
 				Box(
@@ -778,8 +817,80 @@ fun Home(modifier: Modifier = Modifier) {
 				}
 			}
 		}
+	} else if (showSettingsSheet) {
+		ModalBottomSheet(onDismissRequest = { showSettingsSheet = false }) {
+			LazyColumn(
+				Modifier
+					.fillMaxWidth()
+					.padding(24.dp),
+				verticalArrangement = Arrangement.spacedBy(8.dp)
+
+			) {
+				item{
+					Text(
+						"Settings",
+						style = MaterialTheme.typography.headlineMedium
+					)
+				}
+				item{
+					val icons = listOf(
+						Icons.Default.WbSunny,
+						Icons.Default.DarkMode,
+						Icons.Default.AutoAwesome
+					)
+
+					var selected by remember { mutableIntStateOf(
+						when (theme) {
+							Theme.Light -> 0
+							Theme.Dark -> 1
+							Theme.Oled -> 2
+						}
+					) }
+
+					Row (
+						modifier = Modifier
+							.fillMaxWidth(),
+						verticalAlignment = Alignment.CenterVertically,
+						horizontalArrangement = Arrangement.SpaceBetween
+					) {
+						Text(
+							"Theme",
+							style = MaterialTheme.typography.titleMedium,
+							fontWeight = FontWeight.SemiBold
+						)
+						SingleChoiceSegmentedButtonRow(space = 4.dp) {
+							icons.forEachIndexed { index, vector ->
+								SegmentedButton(
+									selected = selected == index,
+									onClick = {
+										selected = index
+
+										when (selected) {
+											0 -> onThemeSelected(Theme.Light)
+											1 -> onThemeSelected(Theme.Dark)
+											2 -> onThemeSelected(Theme.Oled)
+										}
+								    },
+									shape = RoundedCornerShape(50),
+									border = BorderStroke(0.dp, Color.Transparent),
+									icon = {},
+									label = {
+										Icon(
+											vector,
+											contentDescription = if (index == 0) "List view" else "Grid view"
+										)
+									}
+								)
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
+
+enum class Theme { Light, Dark, Oled }
 
 fun startVibrating(context: Context) {
 	val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
@@ -1078,6 +1189,19 @@ object SettingsRepository {
 			.filter { it.contains(".") }
 			.filter { root.optJSONObject(it)?.optBoolean("blockInternet", false) == true }
 			.toList()
+	}
+
+	fun loadTheme(context: Context, system: Theme): Theme {
+		val root = loadFile(context)
+		return runCatching {
+			Theme.valueOf(root.optString("theme"))
+		}.getOrDefault(system)
+	}
+
+	fun saveTheme(context: Context, theme: Theme) {
+		val root = loadFile(context)
+		root.put("theme", theme)
+		saveFile(context, root)
 	}
 
 	private fun JSONArray.indexOfString(target: String): Int {

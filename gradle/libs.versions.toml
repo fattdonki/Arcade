@@ -1,22 +1,23 @@
 [versions]
-agp = "9.3.1"
+agp = "9.3.3"
 shizuku-api = "13.1.5"
-coreKtx = "1.19.0"
+coreKtx = "1.19.1"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
-lifecycleRuntimeKtx = "2.11.0"
+lifecycleRuntimeKtx = "2.11.1"
 activityCompose = "1.13.0"
-kotlin = "2.4.10"
-composeBom = "2026.06.01"
-animation = "1.11.4"
-material3 = "1.5.0-alpha25"
-coil = "3.5.0"
-androidxLifecycle = "2.11.0"
+kotlin = "2.4.21"
+composeBom = "2026.11.01"
+animation = "1.13.0"
+material3 = "1.5.0"
+coil = "3.6.3"
+androidxLifecycle = "2.11.1"
 shizuku-provider = "13.1.5"
 reorderable = "3.1.0"
-uiText = "1.11.4"
+uiText = "1.13.0"
 coreSplashscreen = "1.2.0"
+uiGraphics = "1.13.0"
 
 [libraries]
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
@@ -42,6 +43,7 @@ shizuku-provider = { module = "dev.rikka.shizuku:provider", version.ref = "shizu
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
 androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
+androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref = "uiGraphics" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
