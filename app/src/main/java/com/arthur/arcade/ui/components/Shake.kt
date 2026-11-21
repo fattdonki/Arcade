@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -49,5 +51,10 @@ fun Modifier.shake(
 			y = (intensity * rawY).value.toInt()
 		)
 	}
-
 }
+
+fun Modifier.pointerInputIf(
+	enabled: Boolean,
+	block: suspend PointerInputScope.() -> Unit
+): Modifier =
+	if (enabled) pointerInput(Unit, block) else this

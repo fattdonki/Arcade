@@ -21,6 +21,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -36,6 +37,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -52,8 +54,11 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.FontDownload
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -64,10 +69,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -81,7 +88,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -101,6 +107,7 @@ import com.arthur.arcade.firewall.VpnHandler
 import com.arthur.arcade.firewall.VpnHandlerImpl
 import com.arthur.arcade.ui.components.CheckPermissions
 import com.arthur.arcade.ui.components.GameRow
+import com.arthur.arcade.ui.components.pointerInputIf
 import com.arthur.arcade.ui.components.shake
 import com.arthur.arcade.ui.theme.ArcadeTheme
 import kotlinx.coroutines.Dispatchers
@@ -212,6 +219,16 @@ val JacquardFontFamily: FontFamily = FontFamily(
 	Font(R.font.jacquard_24, FontWeight.Normal)
 )
 
+val IcebergFontFamily: FontFamily = FontFamily(
+	Font(R.font.iceberg_regular, FontWeight.Normal)
+)
+val GlitchFontFamily: FontFamily = FontFamily(
+	Font(R.font.rubik_glitch_regular, FontWeight.Normal)
+)
+val RyeFontFamily: FontFamily = FontFamily(
+	Font(R.font.rye_regular, FontWeight.Normal)
+)
+
 data class GameProfile(
 	var doNotDisturbOn: Boolean? = null,
 	var blockInternet: Boolean = false,
@@ -292,8 +309,11 @@ class AppListViewModel(application: Application) : AndroidViewModel(application)
 fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -> Unit) {
 	val context = LocalContext.current
 
-	var isEasterEggActive by remember { mutableStateOf(false) }
+	var isEasterEggFound by remember {
+		mutableStateOf(SettingsRepository.hasFoundEasterEgg(context))
+	}
 	var isCharging by remember { mutableStateOf(false) }
+	var fontFamily by remember { mutableStateOf(SettingsRepository.loadFont(context)) }
 
 	var slidePermission: String? by remember { mutableStateOf(null) }
 
@@ -383,17 +403,12 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 				text = "Arcade",
 				style = MaterialTheme.typography.displayMedium,
 				fontWeight = FontWeight.Black,
-				fontFamily = if (isEasterEggActive) JacquardFontFamily else FontFamily.Default,
+				fontFamily = fontFamily.toFontFamily(),
 				modifier = Modifier
 					.shake(isCharging)
-					.pointerInput(isEasterEggActive) {
+					.pointerInputIf(!isEasterEggFound) {
 						awaitEachGesture {
 							awaitFirstDown(requireUnconsumed = false)
-
-							if (isEasterEggActive) {
-								isEasterEggActive = false
-								return@awaitEachGesture
-							}
 
 							isCharging = true
 							startVibrating(context)
@@ -412,7 +427,10 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 							stopVibrating(context)
 
 							if (completedHold) {
-								isEasterEggActive = true
+								isEasterEggFound = true
+								SettingsRepository.setHasFoundEasterEgg(context)
+								fontFamily = TitleFont.Jacquard
+								SettingsRepository.saveFont(context, TitleFont.Jacquard)
 							}
 						}
 					}
@@ -819,70 +837,173 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 		}
 	} else if (showSettingsSheet) {
 		ModalBottomSheet(onDismissRequest = { showSettingsSheet = false }) {
-			LazyColumn(
+			Column(
 				Modifier
 					.fillMaxWidth()
 					.padding(24.dp),
 				verticalArrangement = Arrangement.spacedBy(8.dp)
 
 			) {
-				item{
+				Text(
+					"Settings",
+					style = MaterialTheme.typography.headlineMedium
+				)
+				val icons = listOf(
+					Icons.Default.WbSunny,
+					Icons.Default.DarkMode,
+					Icons.Default.AutoAwesome
+				)
+
+				var selected by remember { mutableIntStateOf(
+					when (theme) {
+						Theme.Light -> 0
+						Theme.Dark -> 1
+						Theme.Oled -> 2
+					}
+				) }
+
+				Row (
+					modifier = Modifier
+						.fillMaxWidth(),
+					verticalAlignment = Alignment.CenterVertically,
+					horizontalArrangement = Arrangement.SpaceBetween
+				) {
 					Text(
-						"Settings",
-						style = MaterialTheme.typography.headlineMedium
+						"Theme",
+						style = MaterialTheme.typography.titleMedium,
+						fontWeight = FontWeight.SemiBold
 					)
-				}
-				item{
-					val icons = listOf(
-						Icons.Default.WbSunny,
-						Icons.Default.DarkMode,
-						Icons.Default.AutoAwesome
-					)
+					SingleChoiceSegmentedButtonRow(space = 4.dp) {
+						icons.forEachIndexed { index, vector ->
+							SegmentedButton(
+								selected = selected == index,
+								onClick = {
+									selected = index
 
-					var selected by remember { mutableIntStateOf(
-						when (theme) {
-							Theme.Light -> 0
-							Theme.Dark -> 1
-							Theme.Oled -> 2
+									when (selected) {
+										0 -> onThemeSelected(Theme.Light)
+										1 -> onThemeSelected(Theme.Dark)
+										2 -> onThemeSelected(Theme.Oled)
+									}
+							    },
+								shape = RoundedCornerShape(50),
+								border = BorderStroke(0.dp, Color.Transparent),
+								icon = {},
+								label = {
+									Icon(
+										vector,
+										contentDescription = "Theme Option"
+									)
+								}
+							)
 						}
-					) }
+					}
+				}
 
-					Row (
+				if (isEasterEggFound){
+
+					var showFontDialog by remember { mutableStateOf(false) }
+
+					Row(
 						modifier = Modifier
 							.fillMaxWidth(),
 						verticalAlignment = Alignment.CenterVertically,
 						horizontalArrangement = Arrangement.SpaceBetween
 					) {
 						Text(
-							"Theme",
+							"Title Font",
 							style = MaterialTheme.typography.titleMedium,
 							fontWeight = FontWeight.SemiBold
 						)
-						SingleChoiceSegmentedButtonRow(space = 4.dp) {
-							icons.forEachIndexed { index, vector ->
-								SegmentedButton(
-									selected = selected == index,
-									onClick = {
-										selected = index
-
-										when (selected) {
-											0 -> onThemeSelected(Theme.Light)
-											1 -> onThemeSelected(Theme.Dark)
-											2 -> onThemeSelected(Theme.Oled)
-										}
-								    },
-									shape = RoundedCornerShape(50),
-									border = BorderStroke(0.dp, Color.Transparent),
-									icon = {},
-									label = {
-										Icon(
-											vector,
-											contentDescription = if (index == 0) "List view" else "Grid view"
-										)
-									}
-								)
-							}
+						Row(
+							modifier = Modifier
+								.height(36.dp)
+								.width(120.dp)
+								.clip(RoundedCornerShape(18.dp))
+								.background(MaterialTheme.colorScheme.surfaceVariant)
+								.clickable { showFontDialog = true },
+							verticalAlignment = Alignment.CenterVertically,
+							horizontalArrangement = Arrangement.Center
+						) {
+							Icon(
+								imageVector = Icons.Default.UnfoldMore,
+								contentDescription = "Unfold"
+							)
+							Text(
+								fontFamily.toString(),
+							)
 						}
+					}
+
+					if (showFontDialog) {
+
+						var selected by remember {
+							mutableIntStateOf(
+								when (fontFamily) {
+									TitleFont.Default -> 0
+									TitleFont.Jacquard -> 1
+									TitleFont.Rye -> 2
+									TitleFont.Iceberg -> 3
+									TitleFont.Glitch -> 4
+								}
+							)
+						}
+
+						val fonts = TitleFont.entries.map { it.toString() }
+
+						AlertDialog(
+							onDismissRequest = { showFontDialog = false },
+							icon = {
+								Icon(
+									imageVector = Icons.Default.FontDownload,
+									contentDescription = "Font"
+								)
+							},
+							title = {
+								Text("Select Title Font", style = MaterialTheme.typography.titleMedium)
+							},
+							text = {
+								Column {
+									fonts.forEachIndexed { index, string ->
+										Row(
+											verticalAlignment = Alignment.CenterVertically,
+											modifier = Modifier
+												.clickable {
+													selected = index
+												}
+										) {
+											RadioButton(
+												selected = selected == index,
+												onClick = { selected = index }
+											)
+											Spacer(modifier = Modifier.width(8.dp))
+											Text(
+												string,
+												style = MaterialTheme.typography.bodyMedium
+											)
+										}
+									}
+								}
+							},
+							confirmButton = {
+								TextButton(
+									onClick = {
+										SettingsRepository.saveFont(context, TitleFont.valueOf(fonts[selected]))
+										fontFamily = TitleFont.valueOf(fonts[selected])
+										showFontDialog = false
+									}
+								) {
+									Text("Done")
+								}
+							},
+							dismissButton = {
+								TextButton(
+									onClick = { showFontDialog = false }
+								) {
+									Text("Cancel")
+								}
+							}
+						)
 					}
 				}
 			}
@@ -891,6 +1012,24 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 }
 
 enum class Theme { Light, Dark, Oled }
+
+enum class TitleFont {
+	Default,
+	Jacquard,
+	Rye,
+	Iceberg,
+	Glitch
+}
+
+fun TitleFont.toFontFamily(): FontFamily {
+	return when (this) {
+		TitleFont.Default -> FontFamily.Default
+		TitleFont.Jacquard -> JacquardFontFamily
+		TitleFont.Rye -> RyeFontFamily
+		TitleFont.Iceberg -> IcebergFontFamily
+		TitleFont.Glitch -> GlitchFontFamily
+	}
+}
 
 fun startVibrating(context: Context) {
 	val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
@@ -1150,6 +1289,27 @@ object SettingsRepository {
 	fun setHasSeenOnboarding(context: Context) {
 		val root = loadFile(context)
 		root.put("hasSeenOnboarding", true)
+		saveFile(context, root)
+	}
+
+	fun hasFoundEasterEgg(context: Context): Boolean {
+		return loadFile(context).optBoolean("hasFoundEasterEgg", false)
+	}
+
+	fun setHasFoundEasterEgg(context: Context) {
+		val root = loadFile(context)
+		root.put("hasFoundEasterEgg", true)
+		saveFile(context, root)
+	}
+
+	fun loadFont(context: Context): TitleFont {
+		val root = loadFile(context)
+		return TitleFont.valueOf(root.optString("titleFont", "Default"))
+	}
+
+	fun saveFont(context: Context, font: TitleFont) {
+		val root = loadFile(context)
+		root.put("titleFont", font)
 		saveFile(context, root)
 	}
 
