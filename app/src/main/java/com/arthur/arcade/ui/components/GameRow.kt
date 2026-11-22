@@ -204,8 +204,6 @@ fun GameRow(
 								)
 							}
 
-
-
 							Row(
 								modifier = Modifier
 									.fillMaxWidth()

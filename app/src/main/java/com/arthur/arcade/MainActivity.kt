@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.FontDownload
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.WbSunny
@@ -314,10 +315,12 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 	}
 	var isCharging by remember { mutableStateOf(false) }
 	var fontFamily by remember { mutableStateOf(SettingsRepository.loadFont(context)) }
+	var iconPack by remember { mutableStateOf(SettingsRepository.loadIconPack(context)) }
+	val iconProvider by remember { mutableStateOf(IconProvider(context.packageManager))}
 
 	var slidePermission: String? by remember { mutableStateOf(null) }
 
-	var games by remember { mutableStateOf(getGames(context)) }
+	var games by remember { mutableStateOf(getGames(context, iconProvider)) }
 	var spacerIndices by remember { mutableStateOf(SettingsRepository.loadIndices(context)) }
 	var collapsedGroupHeaders by remember(spacerIndices) {
 		mutableStateOf(getInitialCollapsedHeaders(games, spacerIndices ?: emptyList()))
@@ -539,7 +542,7 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 																context,
 																gameOrNull.packageName
 															)
-															games = getGames(context)
+															games = getGames(context, iconProvider)
 															spacerIndices = (spacerIndices ?: emptyList())
 																.map {
 																	if (it >= rawGameIndex) it - 1
@@ -819,7 +822,7 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 													it
 												)
 											}
-										games = getGames(context)
+										games = getGames(context, iconProvider)
 										showAddAppSheet = false
 									}
 								) {
@@ -1006,6 +1009,98 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 						)
 					}
 				}
+
+				var showIconDialog by remember { mutableStateOf(false) }
+				val pm = context.packageManager
+
+				Row(
+					modifier = Modifier
+						.fillMaxWidth(),
+					verticalAlignment = Alignment.CenterVertically,
+					horizontalArrangement = Arrangement.SpaceBetween
+				) {
+					Text(
+						"Icon Pack",
+						style = MaterialTheme.typography.titleMedium,
+						fontWeight = FontWeight.SemiBold
+					)
+					Row(
+						modifier = Modifier
+							.height(36.dp)
+							.width(120.dp)
+							.clip(RoundedCornerShape(18.dp))
+							.background(MaterialTheme.colorScheme.surfaceVariant)
+							.clickable { showIconDialog = true },
+						verticalAlignment = Alignment.CenterVertically,
+						horizontalArrangement = Arrangement.Center
+					) {
+						Icon(
+							imageVector = Icons.Default.UnfoldMore,
+							contentDescription = "Unfold"
+						)
+
+						val label = remember(iconPack) { iconPackLabel(pm, iconPack) }
+
+						Text(
+							text = label,
+							maxLines = 1,
+							overflow = TextOverflow.Ellipsis
+						)
+					}
+				}
+
+				if (showIconDialog) {
+					val options = remember {
+						listOf<IconPack?>(null) + findIconPacks(pm)
+					}
+
+					var selected by remember {
+						mutableIntStateOf(
+							options.indexOfFirst { it?.packageName == iconPack }.coerceAtLeast(0)
+						)
+					}
+
+					AlertDialog(
+						onDismissRequest = { showIconDialog = false },
+						icon = { Icon(Icons.Default.PhotoLibrary, contentDescription = "Icon Pack") },
+						title = { Text("Select Icon Pack", style = MaterialTheme.typography.titleMedium) },
+						text = {
+							Column {
+								options.forEachIndexed { index, pack ->
+									Row(
+										verticalAlignment = Alignment.CenterVertically,
+										modifier = Modifier.clickable { selected = index }
+									) {
+										RadioButton(
+											selected = selected == index,
+											onClick = { selected = index }
+										)
+										Spacer(modifier = Modifier.width(8.dp))
+										Text(
+											pack?.label ?: "Default",
+											style = MaterialTheme.typography.bodyMedium
+										)
+									}
+								}
+							}
+						},
+						confirmButton = {
+							TextButton(
+								onClick = {
+									val chosen = options[selected]?.packageName
+									SettingsRepository.saveIconPack(context, chosen)
+									iconPack = chosen
+									iconProvider.setPack(chosen)
+									games = getGames(context, iconProvider)
+									showIconDialog = false
+								}
+							) { Text("Done") }
+						},
+						dismissButton = {
+							TextButton(onClick = { showIconDialog = false }) { Text("Cancel") }
+						}
+					)
+				}
 			}
 		}
 	}
@@ -1122,7 +1217,7 @@ fun getInitialCollapsedHeaders(
 	return headers
 }
 
-fun getGames(context: Context): List<GameApp> {
+fun getGames(context: Context, iconProvider: IconProvider): List<GameApp> {
 	val packageManager = context.packageManager
 	val order = SettingsRepository.loadCustomOrder(context)
 
@@ -1142,7 +1237,7 @@ fun getGames(context: Context): List<GameApp> {
 			GameApp(
 				name = info.loadLabel(packageManager).toString(),
 				packageName = appInfo.packageName,
-				icon = info.loadIcon(packageManager),
+				icon = iconProvider.iconFor(appInfo.packageName),
 				profile = GameProfile()
 			)
 		} else null
@@ -1175,6 +1270,15 @@ fun isAGame(appInfo: ApplicationInfo, context: Context): Boolean {
 		true
 	} else {
 		false
+	}
+}
+
+fun iconPackLabel(pm: PackageManager, pack: String?): String {
+	if (pack == null) return "System"
+	return try {
+		pm.getApplicationLabel(pm.getApplicationInfo(pack, 0)).toString()
+	} catch (_: PackageManager.NameNotFoundException) {
+		"System"
 	}
 }
 
@@ -1310,6 +1414,21 @@ object SettingsRepository {
 	fun saveFont(context: Context, font: TitleFont) {
 		val root = loadFile(context)
 		root.put("titleFont", font)
+		saveFile(context, root)
+	}
+
+	fun loadIconPack(context: Context): String? {
+		val root = loadFile(context)
+		return root.optString("iconPack")
+	}
+
+	fun saveIconPack(context: Context, iconPackPackage: String?) {
+		val root = loadFile(context)
+		if (iconPackPackage == null) {
+			root.remove("iconPack")
+		} else {
+			root.put("iconPack", iconPackPackage)
+		}
 		saveFile(context, root)
 	}
 
