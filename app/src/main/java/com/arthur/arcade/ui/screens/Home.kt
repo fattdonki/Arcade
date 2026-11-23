@@ -413,7 +413,7 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 									context,
 									games.map { it.packageName })
 								SettingsRepository.setIndices(context, spacerIndices ?: emptyList())
-
+								dropZoneIndex = games.size
 							} else if (showDraggableButton) {
 								showDraggableButton = false
 								SettingsRepository.setCustomOrder(
@@ -510,7 +510,10 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 		AddAppSheet(
 			viewModel,
 			closeSheet = { showAddAppSheet = false },
-			updateGames = { games = getGames(context, iconProvider) }
+			updateGames = {
+				games = getGames(context, iconProvider)
+				dropZoneIndex = games.size
+			}
 		)
 	} else if (showSettingsSheet) {
 		SettingsSheet(
