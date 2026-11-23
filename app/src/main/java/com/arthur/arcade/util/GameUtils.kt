@@ -7,12 +7,18 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.IconCompat
+import androidx.core.graphics.drawable.toBitmap
+import com.arthur.arcade.ShortcutActivity
 import com.arthur.arcade.data.GameApp
 import com.arthur.arcade.data.GameProfile
 import com.arthur.arcade.data.SettingsRepository
 import com.arthur.arcade.firewall.PermissionManager
 import com.arthur.arcade.firewall.ShizukuState
 import com.arthur.arcade.firewall.VpnHandler
+import kotlin.jvm.java
 
 enum class Position(val topCr: Dp, val bottomCr: Dp) {
 	Top(24.dp, 4.dp),
@@ -151,11 +157,11 @@ fun iconPackLabel(pm: PackageManager, pack: String?): String {
 	}
 }
 
-fun applyProfile(context: Context, game: GameApp) {
+fun applyProfile(context: Context, packageName: String, profile: GameProfile) {
 	val notificationManager =
 		context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-	game.profile.doNotDisturbOn?.let { turnOn ->
+	profile.doNotDisturbOn?.let { turnOn ->
 		if (notificationManager.isNotificationPolicyAccessGranted) {
 			val filter = if (turnOn) NotificationManager.INTERRUPTION_FILTER_ALARMS
 			else NotificationManager.INTERRUPTION_FILTER_ALL
@@ -164,10 +170,33 @@ fun applyProfile(context: Context, game: GameApp) {
 	}
 
 	if (PermissionManager.shizukuState.value != ShizukuState.Ready) {
-		if (game.profile.blockInternet) {
+		if (profile.blockInternet) {
 			if (context is VpnHandler) {
-				context.checkAndStartVpn(game.packageName)
+				context.checkAndStartVpn(packageName)
 			}
 		}
 	}
+}
+
+fun pushGameShortcut(
+	context: Context,
+	iconProvider: IconProvider,
+	packageName: String,
+	label: String
+) {
+	val intent = Intent(context, ShortcutActivity::class.java).apply {
+		action = ShortcutActivity.ACTION_LAUNCH_GAME
+		putExtra(ShortcutActivity.EXTRA_PACKAGE, packageName)
+	}
+
+	val size = ShortcutManagerCompat.getIconMaxWidth(context)
+	val bitmap = iconProvider.iconFor(packageName).toBitmap(size, size)
+
+	val shortcut = ShortcutInfoCompat.Builder(context, "game_$packageName")
+		.setShortLabel(label)
+		.setIcon(IconCompat.createWithBitmap(bitmap))
+		.setIntent(intent)
+		.build()
+
+	ShortcutManagerCompat.pushDynamicShortcut(context, shortcut)
 }

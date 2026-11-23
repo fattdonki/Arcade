@@ -28,6 +28,13 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ShortcutActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:excludeFromRecents="true"
+            android:taskAffinity="" />
+
         <!-->Google Play Store requires that apps using a VPN service are primarily
         VPN apps. Tools:ignore ignores the warning.</!-->
         <service android:name=".firewall.BlackHoleVpn"

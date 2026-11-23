@@ -76,6 +76,8 @@ import com.arthur.arcade.util.applyProfile
 import com.arthur.arcade.firewall.PermissionManager
 import com.arthur.arcade.firewall.ShizukuManager
 import com.arthur.arcade.firewall.ShizukuState
+import com.arthur.arcade.util.IconProvider
+import com.arthur.arcade.util.pushGameShortcut
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -370,7 +372,8 @@ fun GameRow(
 				modifier = Modifier
 					.offset {
 						IntOffset(
-							((offsetAnim.value / 2f).coerceAtLeast(35f * density) - 12f * density).toInt(),
+							((offsetAnim.value / 2f).coerceAtLeast(35f * density) - 12f * density)
+								.toInt(),
 							0
 						)
 					}
@@ -387,7 +390,13 @@ fun GameRow(
 				.clickable (
 					enabled = enabled,
 					onClick = {
-						applyProfile(context, game)
+						pushGameShortcut(
+							context,
+							IconProvider(context.packageManager),
+							game.packageName,
+							game.name
+						)
+						applyProfile(context, game.packageName, game.profile)
 						context.packageManager
 							.getLaunchIntentForPackage(game.packageName)
 							?.let { context.startActivity(it) }
