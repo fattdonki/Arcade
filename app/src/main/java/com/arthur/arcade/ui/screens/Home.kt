@@ -88,7 +88,10 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 	}
 	var isCharging by remember { mutableStateOf(false) }
 	var fontFamily by remember { mutableStateOf(SettingsRepository.loadFont(context)) }
-	val iconProvider by remember { mutableStateOf(IconProvider(context.packageManager))}
+	val iconProvider by remember { mutableStateOf(IconProvider(context.packageManager)
+		.apply {
+			setPack(SettingsRepository.loadIconPack(context))
+		}) }
 
 	var slidePermission: String? by remember { mutableStateOf(null) }
 

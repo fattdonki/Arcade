@@ -67,7 +67,7 @@ class IconProvider(private val pm: PackageManager) {
 
 	fun setPack(pack: String?) {
 		packName = pack
-		if (pack == null ) {
+		if (pack.isNullOrEmpty()) {
 			mapping = emptyMap()
 			packRes = null
 			return
@@ -80,6 +80,7 @@ class IconProvider(private val pm: PackageManager) {
 		fromPack(appPackage)?.let { return it }
 		return pm.getApplicationIcon(appPackage)
 	}
+	@SuppressLint("DiscouragedApi")
 	private fun fromPack(appPackage: String): Drawable? {
 		val pack = packName ?: return null
 		val res  = packRes ?: return null
