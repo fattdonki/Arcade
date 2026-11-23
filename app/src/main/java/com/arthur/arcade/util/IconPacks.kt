@@ -1,5 +1,6 @@
-package com.arthur.arcade
+package com.arthur.arcade.util
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Resources
@@ -30,6 +31,7 @@ fun findIconPacks(pm: PackageManager): List<IconPack> {
 		.toList()
 }
 
+@SuppressLint("DiscouragedApi")
 fun loadAppFilter(pm: PackageManager, pack: String): Map<String, String> {
 	val res = pm.getResourcesForApplication(pack)
 	val xmlId = res.getIdentifier("appfilter", "xml", pack)

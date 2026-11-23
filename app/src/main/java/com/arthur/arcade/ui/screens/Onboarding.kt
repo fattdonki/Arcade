@@ -1,4 +1,4 @@
-package com.arthur.arcade
+package com.arthur.arcade.ui.screens
 
 import android.widget.Toast
 import androidx.compose.animation.core.Animatable
@@ -51,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.arthur.arcade.R
 import kotlinx.coroutines.launch
 
 @Composable

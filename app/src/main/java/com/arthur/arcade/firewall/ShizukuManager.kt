@@ -8,7 +8,7 @@ import android.os.IBinder
 import android.util.Log
 import com.arthur.arcade.BuildConfig
 import com.arthur.arcade.IFirewallService
-import com.arthur.arcade.SettingsRepository
+import com.arthur.arcade.data.SettingsRepository
 import rikka.shizuku.Shizuku
 
 object ShizukuManager {

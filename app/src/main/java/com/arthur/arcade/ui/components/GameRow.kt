@@ -69,10 +69,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.arthur.arcade.GameApp
-import com.arthur.arcade.Position
-import com.arthur.arcade.SettingsRepository
-import com.arthur.arcade.applyProfile
+import com.arthur.arcade.data.GameApp
+import com.arthur.arcade.data.SettingsRepository
+import com.arthur.arcade.util.Position
+import com.arthur.arcade.util.applyProfile
 import com.arthur.arcade.firewall.PermissionManager
 import com.arthur.arcade.firewall.ShizukuManager
 import com.arthur.arcade.firewall.ShizukuState
