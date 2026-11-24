@@ -182,7 +182,8 @@ fun CheckPermissions(
 				TextButton(
 					onClick = {
 						if (context is MainActivity) {
-							context.notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+							context.notificationPermissionLauncher
+								.launch(Manifest.permission.POST_NOTIFICATIONS)
 						}
 						showNotificationDialog = false
 					}

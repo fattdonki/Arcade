@@ -23,7 +23,6 @@ import com.arthur.arcade.firewall.PermissionManager
 import com.arthur.arcade.firewall.ShizukuManager
 import com.arthur.arcade.firewall.VpnHandler
 import com.arthur.arcade.firewall.VpnHandlerImpl
-import com.arthur.arcade.ui.components.CheckPermissions
 import com.arthur.arcade.ui.screens.Home
 import com.arthur.arcade.ui.screens.Onboarding
 import com.arthur.arcade.ui.theme.ArcadeTheme
@@ -74,29 +73,22 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 				Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
 
 					var showOnboarding by remember {
-						mutableStateOf(!SettingsRepository.hasSeenOnboarding(context))
-					}
-
-					var checkPermissions by remember {
-						mutableStateOf(false)
+						mutableStateOf(
+							!SettingsRepository.hasSeenOnboarding(context)
+									|| BuildConfig.DEBUG
+						)
 					}
 
 					if (showOnboarding) {
 						Onboarding(
+							this,
 							Modifier.padding(innerPadding),
 							onContinue = {
-								checkPermissions = true
 								showOnboarding = false
+								SettingsRepository.setHasSeenOnboarding(context)
 							}
 						)
 					} else {
-						if (checkPermissions){
-							CheckPermissions(context) {
-								checkPermissions = false
-								SettingsRepository.setHasSeenOnboarding(context)
-								ShizukuManager.bind(context)
-							}
-						}
 						Home(
 							Modifier.padding(innerPadding),
 							theme,

@@ -437,7 +437,7 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 								else -> Icons.Default.Add
 							},
 							contentDescription = if (showDeleteButton) "Done" else "Menu Toggle",
-							tint = if (expanded && !showDeleteButton) {
+							tint = if (expanded) {
 								MaterialTheme.colorScheme.onPrimary
 							} else {
 								MaterialTheme.colorScheme.onPrimaryContainer

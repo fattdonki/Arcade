@@ -43,12 +43,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.arthur.arcade.util.IconPack
-import com.arthur.arcade.util.IconProvider
 import com.arthur.arcade.data.SettingsRepository
-import com.arthur.arcade.util.findIconPacks
 import com.arthur.arcade.ui.theme.Theme
 import com.arthur.arcade.ui.theme.TitleFont
+import com.arthur.arcade.util.IconPack
+import com.arthur.arcade.util.IconProvider
+import com.arthur.arcade.util.findIconPacks
 import com.arthur.arcade.util.iconPackLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
