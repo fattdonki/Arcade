@@ -70,7 +70,8 @@ fun SettingsSheet(
 		Column(
 			Modifier
 				.fillMaxWidth()
-				.padding(24.dp),
+				.padding(horizontal = 24.dp)
+				.padding(bottom = 24.dp),
 			verticalArrangement = Arrangement.spacedBy(8.dp)
 		) {
 			Text(

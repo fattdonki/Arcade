@@ -75,7 +75,6 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 					var showOnboarding by remember {
 						mutableStateOf(
 							!SettingsRepository.hasSeenOnboarding(context)
-									|| BuildConfig.DEBUG
 						)
 					}
 
