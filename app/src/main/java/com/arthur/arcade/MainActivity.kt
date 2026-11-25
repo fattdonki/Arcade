@@ -109,7 +109,9 @@ class MainActivity : ComponentActivity(), VpnHandler by VpnHandlerImpl() {
 
 	override fun onDestroy() {
 		super.onDestroy()
-		ShizukuManager.disableFirewall()
-		ShizukuManager.unbind()
+		if (isFinishing) {
+			ShizukuManager.disableFirewall()
+			ShizukuManager.unbind()
+		}
 	}
 }
