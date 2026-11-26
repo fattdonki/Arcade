@@ -175,6 +175,55 @@ fun GameRow(
 				)
 				Spacer(modifier = Modifier.height(8.dp))
 
+				if (ShortcutManagerCompat.isRequestPinShortcutSupported(context)) {
+					val size = ShortcutManagerCompat.getIconMaxWidth(context)
+					val bitmap = IconProvider(context.packageManager)
+						.iconFor(game.packageName)
+						.toBitmap(size, size)
+
+						Row(
+							horizontalArrangement = Arrangement.SpaceBetween,
+							verticalAlignment = Alignment.CenterVertically,
+							modifier = Modifier.fillMaxWidth()
+						){
+							Text(
+								"Add shortcut to homescreen",
+								style = MaterialTheme.typography.titleMedium,
+								fontWeight = FontWeight.SemiBold,
+							)
+							IconButton(
+								onClick = {
+									val pinShortcutInfo = ShortcutInfoCompat
+										.Builder(context, game.packageName)
+										.setShortLabel(game.name)
+										.setIcon(IconCompat.createWithBitmap(bitmap))
+										.setIntent(
+											Intent(context, ShortcutActivity::class.java).apply {
+												action = ShortcutActivity.ACTION_LAUNCH_GAME
+												putExtra(
+													ShortcutActivity.EXTRA_PACKAGE,
+													game.packageName
+												)
+											}
+										)
+										.build()
+
+									ShortcutManagerCompat.requestPinShortcut(
+										context,
+										pinShortcutInfo,
+										null
+									)
+								}
+							) {
+								Icon(
+									imageVector = Icons.AutoMirrored.Filled.AddToHomeScreen,
+									contentDescription = "Add to home screen"
+								)
+							}
+						}
+				}
+				Spacer(modifier = Modifier.height(8.dp))
+
 				Box{
 					val options = listOf(
 						null to "Don't change",
