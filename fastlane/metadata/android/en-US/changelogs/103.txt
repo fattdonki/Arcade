@@ -1,0 +1,5 @@
+Option to choose between light, dark and black.
+Shortcuts to quick launch a game, both by pinning the shortcut to your homescreen, or by long pressing the app icon.
+This release adds app icon pack support. Arcade detects installed icon packs, and you can apply them in settings.
+The add app sheet is now searchable.
+New onboarding screen
