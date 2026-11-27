@@ -12,12 +12,4 @@ data class GameApp(
 	val packageName: String,
 	val icon: Drawable,
 	var profile: GameProfile
-) {
-	fun resolveName(customName: String?): GameApp {
-		return this.copy(name = customName ?: name)
-	}
-
-	fun resolveProfile(profile: GameProfile): GameApp {
-		return this.copy(profile = profile)
-	}
-}
+)

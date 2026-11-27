@@ -46,15 +46,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.arthur.arcade.data.AppListViewModel
 import com.arthur.arcade.data.SettingsRepository
+import com.arthur.arcade.util.highlightMatchingText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -168,7 +164,9 @@ fun AddAppSheet(viewModel: AppListViewModel, closeSheet: () -> Unit, updateGames
 
 								Checkbox(
 									checked = app.isChecked,
-									onCheckedChange = { viewModel.toggleAppChecked(app.info.packageName) }
+									onCheckedChange = {
+										viewModel.toggleAppChecked(app.info.packageName)
+									}
 								)
 							}
 						}
@@ -204,39 +202,6 @@ fun AddAppSheet(viewModel: AppListViewModel, closeSheet: () -> Unit, updateGames
 					)
 				}
 			}
-		}
-	}
-}
-
-@Composable
-fun highlightMatchingText(text: String, query: String): AnnotatedString {
-	if (query.isBlank()) return AnnotatedString(text)
-
-	return buildAnnotatedString {
-		val lowerText = text.lowercase()
-		val lowerQuery = query.lowercase()
-		var startIndex = 0
-
-		while (true) {
-			val index = lowerText.indexOf(lowerQuery, startIndex)
-			if (index == -1) {
-				append(text.substring(startIndex))
-				break
-			}
-
-			append(text.substring(startIndex, index))
-
-			withStyle(
-				SpanStyle(
-					fontWeight = FontWeight.Bold,
-					color = MaterialTheme.colorScheme.tertiary
-				)
-			) {
-				append(text.substring(index, index + query.length))
-			}
-
-			startIndex = index + query.length
-			if (startIndex >= text.length) break
 		}
 	}
 }

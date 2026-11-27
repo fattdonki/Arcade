@@ -29,6 +29,13 @@ object SettingsRepository {
 		return if (entry.has("name")) entry.getString("name") else null
 	}
 
+	fun loadIcon(context: Context, packageName: String): IconDetails? {
+		val entry = loadFile(context).optJSONObject(packageName) ?: return null
+		val name = entry.optString("iconName").ifEmpty { return null }
+		val pack = entry.optString("iconPack").ifEmpty { loadIconPack(context) ?: return null }
+		return IconDetails(pack = pack, name = name)
+	}
+
 	fun loadProfile(context: Context, packageName: String): GameProfile {
 		val entry = loadFile(context).optJSONObject(packageName) ?: return GameProfile()
 		return GameProfile(
@@ -41,6 +48,21 @@ object SettingsRepository {
 		val root = loadFile(context)
 		val entry = root.optJSONObject(packageName) ?: JSONObject()
 		entry.put("name", name)
+		root.put(packageName, entry)
+		saveFile(context, root)
+	}
+
+	fun saveIcon(context: Context, packageName: String, iconDetails: IconDetails) {
+		val root = loadFile(context)
+		val entry = root.optJSONObject(packageName) ?: JSONObject()
+
+		entry.put("iconName", iconDetails.name)
+		if (iconDetails.pack == loadIconPack(context)) {
+			entry.remove("iconPack")
+		} else {
+			entry.put("iconPack", iconDetails.pack)
+		}
+
 		root.put(packageName, entry)
 		saveFile(context, root)
 	}
@@ -144,7 +166,7 @@ object SettingsRepository {
 
 	fun loadIconPack(context: Context): String? {
 		val root = loadFile(context)
-		return root.optString("iconPack")
+		return if (root.has("iconPack")) root.optString("iconPack").ifEmpty { null } else null
 	}
 
 	fun saveIconPack(context: Context, iconPackPackage: String?) {

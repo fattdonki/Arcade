@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +51,8 @@ import com.arthur.arcade.util.IconPack
 import com.arthur.arcade.util.IconProvider
 import com.arthur.arcade.util.findIconPacks
 import com.arthur.arcade.util.iconPackLabel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -308,14 +311,17 @@ fun SettingsSheet(
 						}
 					},
 					confirmButton = {
+						val scope = rememberCoroutineScope()
 						TextButton(
 							onClick = {
 								val chosen = options[selectedPackIndex]?.packageName
-								SettingsRepository.saveIconPack(context, chosen)
-								iconPack = chosen
-								iconProvider.setPack(chosen)
-								onGamesUpdated()
 								showIconDialog = false
+								scope.launch(Dispatchers.IO) {
+									SettingsRepository.saveIconPack(context, chosen)
+									iconPack = chosen
+									iconProvider.setPack(chosen)
+									onGamesUpdated()
+								}
 							}
 						) { Text("Done") }
 					},

@@ -280,19 +280,7 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 									val isCollapsibleGroup = isGroupHeader && (groupEndIndex > rawGameIndex)
 
 									GameRow(
-										game = gameOrNull
-											.resolveName(
-												SettingsRepository.loadName(
-													context,
-													gameOrNull.packageName
-												)
-											)
-											.resolveProfile(
-												SettingsRepository.loadProfile(
-													context,
-													gameOrNull.packageName
-												)
-											),
+										game = gameOrNull,
 
 										iconButton = @Composable {
 											when {
@@ -527,7 +515,10 @@ fun Home(modifier: Modifier = Modifier, theme: Theme, onThemeSelected: (Theme) -
 			onFontSelected = { fontFamily = it },
 			isEasterEggFound = isEasterEggFound,
 			iconProvider = iconProvider,
-			onGamesUpdated = { games = getGames(context, iconProvider) },
+			onGamesUpdated = {
+				iconProvider.setPack(SettingsRepository.loadIconPack(context))
+				games = getGames(context, iconProvider)
+			},
 			closeSheet = { showSettingsSheet = false }
 		)
 	}

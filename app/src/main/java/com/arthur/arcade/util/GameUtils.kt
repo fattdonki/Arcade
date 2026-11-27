@@ -107,13 +107,27 @@ fun getGames(context: Context, iconProvider: IconProvider): List<GameApp> {
 
 	return resolveInfos.mapNotNull { info ->
 		val appInfo = info.activityInfo.applicationInfo
+		val iconOverload = SettingsRepository.loadIcon(context, appInfo.packageName)
+		val name = SettingsRepository.loadName(context, appInfo.packageName)
+			?: info.loadLabel(packageManager).toString()
+		val profile = SettingsRepository.loadProfile(context, appInfo.packageName)
+
+		val icon = if (iconOverload != null) {
+			IconProvider(packageManager).apply {
+				setPack(iconOverload.pack)
+			}
+				.packDrawable(iconOverload.name)
+				?: iconProvider.iconFor(appInfo.packageName)
+		} else {
+			iconProvider.iconFor(appInfo.packageName)
+		}
 
 		if (isAGame(appInfo, context)) {
 			GameApp(
-				name = info.loadLabel(packageManager).toString(),
+				name,
 				packageName = appInfo.packageName,
-				icon = iconProvider.iconFor(appInfo.packageName),
-				profile = GameProfile()
+				icon,
+				profile = profile
 			)
 		} else null
 	}.sortedWith { a, b ->
@@ -137,15 +151,9 @@ fun isAGame(appInfo: ApplicationInfo, context: Context): Boolean {
 	val nonGameApps = SettingsRepository.loadNonGameApps(context)
 	val removedGames = SettingsRepository.loadRemovedGames(context)
 
-	return if (removedGames.contains(appInfo.packageName)) {
-		false
-	} else if (nonGameApps.contains(appInfo.packageName)) {
-		true
-	} else if (appInfo.category == ApplicationInfo.CATEGORY_GAME) {
-		true
-	} else {
-		false
-	}
+	return !removedGames.contains(appInfo.packageName)
+			&& (nonGameApps.contains(appInfo.packageName)
+			|| appInfo.category == ApplicationInfo.CATEGORY_GAME)
 }
 
 fun iconPackLabel(pm: PackageManager, pack: String?): String {
