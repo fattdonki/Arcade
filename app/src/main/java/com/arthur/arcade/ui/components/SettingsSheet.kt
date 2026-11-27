@@ -197,9 +197,9 @@ fun SettingsSheet(
 								fonts.forEachIndexed { index, string ->
 									Row(
 										verticalAlignment = Alignment.CenterVertically,
-										modifier = Modifier.clickable {
-											selectedFontIndex = index
-										}
+										modifier = Modifier
+											.clickable { selectedFontIndex = index }
+											.width(232.dp)
 									) {
 										RadioButton(
 											selected = selectedFontIndex == index,
@@ -295,7 +295,9 @@ fun SettingsSheet(
 							options.forEachIndexed { index, pack ->
 								Row(
 									verticalAlignment = Alignment.CenterVertically,
-									modifier = Modifier.clickable { selectedPackIndex = index }
+									modifier = Modifier
+										.clickable { selectedPackIndex = index }
+										.width(232.dp)
 								) {
 									RadioButton(
 										selected = selectedPackIndex == index,
